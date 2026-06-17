@@ -1,0 +1,17 @@
+{
+  "name": "Indelify",
+  "short_name": "Indelify",
+  "description": "Find the soundtrack to your moments.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#100A0D",
+  "theme_color": "#D4888A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
