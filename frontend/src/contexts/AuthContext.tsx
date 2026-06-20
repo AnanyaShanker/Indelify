@@ -6,153 +6,157 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  connecting: boolean   // true while an OAuth popup is open
   signInWithSpotify: () => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
+const OAUTH_CHANNEL = 'indelify-oauth'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]       = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-  const popupRef  = useRef<Window | null>(null)
-  const pollRef   = useRef<ReturnType<typeof setInterval> | null>(null)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [user, setUser]           = useState<User | null>(null)
+  const [session, setSession]     = useState<Session | null>(null)
+  const [loading, setLoading]     = useState(true)
+  const [connecting, setConnecting] = useState(false)
+
+  const popupRef = useRef<Window | null>(null)
+  const watchRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // --- helpers ---
+  function clearWatch() {
+    if (watchRef.current) { clearInterval(watchRef.current); watchRef.current = null }
+  }
+
+  function closePopupAndReset(newSession?: Session | null) {
+    if (newSession !== undefined) { setSession(newSession); setUser(newSession?.user ?? null) }
+    if (popupRef.current && !popupRef.current.closed) {
+      try { popupRef.current.close() } catch (_) {}
+    }
+    popupRef.current = null
+    clearWatch()
+    setConnecting(false)
+  }
+
+  // Safety interval: if the user manually closes the popup before auth
+  // completes, detect popup.closed and reset the connecting state.
+  function watchPopup(popup: Window) {
+    clearWatch()
+    watchRef.current = setInterval(() => {
+      if (!popup.closed) return
+      // Popup closed without auth completing
+      if (popupRef.current === popup) {
+        popupRef.current = null
+        clearWatch()
+        setConnecting(false)
+      }
+    }, 400)
+    // Safety stop after 5 minutes
+    setTimeout(clearWatch, 300_000)
+  }
 
   useEffect(() => {
+    // Initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
+    // Supabase BroadcastChannel / storage-event sync from other windows
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      // Belt-and-suspenders: if session arrives via BroadcastChannel/storage event,
-      // close the popup immediately without waiting for the poll.
-      if (session) forceClosePopup()
+      if (session) closePopupAndReset()
     })
+
+    // postMessage from Callback popup (window.opener.postMessage path)
+    function handleMessage(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === 'OAUTH_SUCCESS') closePopupAndReset(e.data.session as Session)
+      if (e.data?.type === 'OAUTH_ERROR')   closePopupAndReset()
+    }
+    window.addEventListener('message', handleMessage)
+
+    // BroadcastChannel fallback (when window.opener is null after cross-origin nav)
+    const channel = new BroadcastChannel(OAUTH_CHANNEL)
+    channel.onmessage = (e) => {
+      if (e.data?.type === 'OAUTH_SUCCESS') closePopupAndReset(e.data.session as Session)
+      if (e.data?.type === 'OAUTH_ERROR')   closePopupAndReset()
+    }
 
     return () => {
       subscription.unsubscribe()
-      stopPoll()
+      window.removeEventListener('message', handleMessage)
+      channel.close()
+      clearWatch()
     }
   }, [])
 
-  function stopPoll() {
-    if (pollRef.current)   { clearInterval(pollRef.current);  pollRef.current  = null }
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null }
-  }
-
-  function forceClosePopup() {
-    if (popupRef.current && !popupRef.current.closed) {
-      try { popupRef.current.close() } catch (_) {}
-    }
-    popupRef.current = null
-    stopPoll()
-  }
-
-  // Poll the popup's URL every 400ms.
-  // Reading popup.location.href throws a SecurityError when the popup is on a
-  // cross-origin page (Google / Supabase). Once it returns to our origin the
-  // read succeeds — that's our signal to close the popup and sync the session.
-  function startPolling(popup: Window) {
-    stopPoll()
-    let sawCrossOrigin = false
-
-    pollRef.current = setInterval(() => {
-      // Popup was closed by the user
-      if (popup.closed) {
-        stopPoll()
-        if (popupRef.current === popup) popupRef.current = null
-        // Sync session in case it was set before the user closed the popup
-        supabase.auth.getSession().then(({ data }) => {
-          if (data.session) { setSession(data.session); setUser(data.session.user) }
-        })
-        return
-      }
-
-      try {
-        const href = popup.location.href
-        // Popup is on our domain. If we previously saw it go cross-origin
-        // (OAuth in progress), that means OAuth just finished.
-        if (sawCrossOrigin && href.startsWith(window.location.origin)) {
-          stopPoll()
-          // Give Supabase ~1.5 s to write the session to localStorage
-          timeoutRef.current = setTimeout(async () => {
-            if (!popup.closed) try { popup.close() } catch (_) {}
-            if (popupRef.current === popup) popupRef.current = null
-            const { data } = await supabase.auth.getSession()
-            if (data.session) { setSession(data.session); setUser(data.session.user) }
-          }, 1500)
-        }
-      } catch {
-        // Cross-origin — OAuth is in progress on Google / Supabase. Expected.
-        sawCrossOrigin = true
-      }
-    }, 400)
-
-    // Safety stop after 5 minutes
-    const safety = setTimeout(stopPoll, 300_000)
-    // Store the safety timeout in a separate var so we can clear it on unmount
-    // (timeoutRef is already used for the 1.5s close delay, so just let it leak
-    // for 5 min since the component unmounts rarely)
-    void safety
-  }
-
   function openBlankPopup(): Window | null {
-    const w = 500, h = 650
+    const w = 450, h = 730
     const left = Math.round(window.screenX + (window.outerWidth  - w) / 2)
     const top  = Math.round(window.screenY + (window.outerHeight - h) / 2)
-    return window.open('about:blank', 'indelify-auth',
-      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`)
+    return window.open(
+      'about:blank', 'indelify-auth',
+      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
+    )
   }
 
   async function signInWithGoogle() {
     const popup = openBlankPopup()
+    setConnecting(true)
+
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/auth/callback',
+        redirectTo: window.location.origin + '/callback',
         skipBrowserRedirect: true,
       },
     })
+
     if (data?.url) {
       if (popup) {
         popup.location.href = data.url
         popupRef.current = popup
-        startPolling(popup)
+        watchPopup(popup)
       } else {
-        window.location.href = data.url   // popup blocked — fallback redirect
+        // Popup blocked — fall back to redirecting the current tab
+        window.location.href = data.url
+        setConnecting(false)
       }
     } else {
       popup?.close()
+      setConnecting(false)
     }
   }
 
   async function signInWithSpotify() {
     const popup = openBlankPopup()
+    setConnecting(true)
+
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'spotify',
       options: {
         scopes: 'user-read-email user-read-private playlist-modify-public playlist-modify-private',
-        redirectTo: window.location.origin + '/auth/callback',
+        redirectTo: window.location.origin + '/callback',
         skipBrowserRedirect: true,
       },
     })
+
     if (data?.url) {
       if (popup) {
         popup.location.href = data.url
         popupRef.current = popup
-        startPolling(popup)
+        watchPopup(popup)
       } else {
         window.location.href = data.url
+        setConnecting(false)
       }
     } else {
       popup?.close()
+      setConnecting(false)
     }
   }
 
@@ -161,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signInWithSpotify, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, connecting, signInWithSpotify, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   )
