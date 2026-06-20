@@ -29,9 +29,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (watchRef.current) { clearInterval(watchRef.current); watchRef.current = null }
   }
 
+  // Helper: safely read popup.closed without throwing.
+  // COOP (Cross-Origin-Opener-Policy) set by Google/Supabase auth pages severs
+  // the opener↔popup browsing-context-group, causing .closed reads to throw a
+  // SecurityError. We catch that and assume NOT closed (popup handles itself).
+  function isPopupClosed(popup: Window): boolean {
+    try { return popup.closed } catch (_) { return false }
+  }
+
   function closePopupAndReset(newSession?: Session | null) {
     if (newSession !== undefined) { setSession(newSession); setUser(newSession?.user ?? null) }
-    if (popupRef.current && !popupRef.current.closed) {
+    if (popupRef.current) {
+      // popup.close() from the opener is also blocked by COOP — the popup closes
+      // itself via window.close() (or the "Close this tab" button) in Callback.tsx.
       try { popupRef.current.close() } catch (_) {}
     }
     popupRef.current = null
@@ -41,10 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Safety interval: if the user manually closes the popup before auth
   // completes, detect popup.closed and reset the connecting state.
+  // Uses isPopupClosed() to avoid COOP SecurityErrors.
   function watchPopup(popup: Window) {
     clearWatch()
     watchRef.current = setInterval(() => {
-      if (!popup.closed) return
+      if (!isPopupClosed(popup)) return
       // Popup closed without auth completing
       if (popupRef.current === popup) {
         popupRef.current = null
@@ -68,7 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      if (session) closePopupAndReset()
+      if (session) {
+        // Call closePopupAndReset AND also clear watch/connecting directly
+        // as a safety net in case of stale closure.
+        closePopupAndReset()
+        clearWatch()
+        setConnecting(false)
+      }
     })
 
     // postMessage from Callback popup (window.opener.postMessage path)
@@ -111,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/callback',
+        redirectTo: window.location.origin + '/auth/callback',
         skipBrowserRedirect: true,
       },
     })
@@ -140,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'spotify',
       options: {
         scopes: 'user-read-email user-read-private playlist-modify-public playlist-modify-private',
-        redirectTo: window.location.origin + '/callback',
+        redirectTo: window.location.origin + '/auth/callback',
         skipBrowserRedirect: true,
       },
     })

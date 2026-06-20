@@ -13,10 +13,19 @@ import { AuthProvider } from './contexts/AuthContext'
 // Short-circuit: if this window is an OAuth callback popup, render ONLY the
 // minimal Callback handler — never AuthProvider, Router, or any app UI.
 // This prevents the full app from loading inside the popup after sign-in.
-const CALLBACK_PATHS = ['/callback', '/spotify-write-callback']
+const CALLBACK_PATHS = ['/callback', '/auth/callback', '/spotify-write-callback']
 
-if (CALLBACK_PATHS.includes(window.location.pathname)) {
-  // For /spotify-write-callback we still need its own component
+// Also detect OAuth redirects that landed on the wrong path (e.g. Supabase fell
+// back to the site URL instead of our /callback because the local dev URL wasn't
+// in the redirect allowlist). Supabase PKCE passes ?code= in query params;
+// implicit flow passes #access_token= in the hash.
+const searchParams = new URLSearchParams(window.location.search)
+const isOAuthLanding =
+  searchParams.has('code') ||
+  window.location.hash.startsWith('#access_token=') ||
+  window.location.hash.includes('&access_token=')
+
+if (CALLBACK_PATHS.includes(window.location.pathname) || isOAuthLanding) {
   const isSpotifyWrite = window.location.pathname === '/spotify-write-callback'
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

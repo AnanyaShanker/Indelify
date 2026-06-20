@@ -71,6 +71,9 @@ export default function App() {
     if (prevTabRef.current !== activeTab) { stopAll(); prevTabRef.current = activeTab }
   }, [activeTab])
 
+  // Close the sign-in modal as soon as the user becomes authenticated
+  useEffect(() => { if (user) setShowAuthModal(false) }, [user])
+
   useEffect(() => { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)) }, [history])
   useEffect(() => { localStorage.setItem(LANG_PREF_KEY, langPref) }, [langPref])
   useEffect(() => {
