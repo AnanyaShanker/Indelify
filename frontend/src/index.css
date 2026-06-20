@@ -862,6 +862,10 @@ img {
   display: none;
 }
 
+.mobile-avatar-btn {
+  display: none;
+}
+
 .topbar-inner {
   padding: 0 44px;
 }
@@ -910,6 +914,22 @@ img {
     white-space: nowrap;
     flex-shrink: 0;
     letter-spacing: 0.01em;
+  }
+
+  .mobile-avatar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 0;
   }
 
   /* Topbar & content */

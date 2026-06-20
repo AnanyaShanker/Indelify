@@ -415,7 +415,26 @@ export default function App() {
             <div className="topbar-lang">
               <LangBadge langPref={langPref} />
             </div>
-            {!user && (
+            {user ? (
+              <button
+                className="mobile-avatar-btn"
+                onClick={() => setSidebarOpen(o => !o)}
+                aria-label="Open menu"
+                title={user.user_metadata?.full_name || user.email || 'Account'}
+              >
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt=""
+                    style={{ width: 28, height: 28, borderRadius: '50%', display: 'block' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>
+                    {(user.user_metadata?.full_name || user.email || '?')[0].toUpperCase()}
+                  </span>
+                )}
+              </button>
+            ) : (
               <button
                 className="mobile-signin-btn"
                 onClick={() => setShowAuthModal(true)}
