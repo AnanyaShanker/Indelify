@@ -1,21 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
-// Shared channel name used by AuthContext listener
 const CHANNEL = 'indelify-oauth'
 
 function sendToOpener(payload: Record<string, unknown>) {
   const origin = window.location.origin
-  // postMessage works when window.opener is available (script-opened popup)
   if (window.opener && typeof window.opener.postMessage === 'function') {
     try { window.opener.postMessage(payload, origin); return } catch (_) {}
   }
-  // BroadcastChannel fallback: fires in all same-origin windows
-  try {
-    const ch = new BroadcastChannel(CHANNEL)
-    ch.postMessage(payload)
-    ch.close()
-  } catch (_) {}
+  // BroadcastChannel fallback (when opener is null after cross-origin nav)
+  try { const ch = new BroadcastChannel(CHANNEL); ch.postMessage(payload); ch.close() } catch (_) {}
 }
 
 export default function Callback() {
@@ -26,28 +20,38 @@ export default function Callback() {
       if (handled.current) return
       handled.current = true
 
+      // Step 1 — send result to main window
+      console.log('[Callback] Auth complete. Sending message to opener, session:', !!session)
       if (session) {
         sendToOpener({ type: 'OAUTH_SUCCESS', session })
       } else {
         sendToOpener({ type: 'OAUTH_ERROR', error: error ?? 'Authentication failed' })
       }
 
-      window.close()
-      // If window.close() is blocked (popup blocker fallback — we are the main window),
-      // redirect to the app so the user isn't stuck on this page.
-      setTimeout(() => { if (!window.closed) window.location.replace('/app') }, 300)
+      // Step 2 — give the main window 100ms to receive the message and call
+      // popupRef.current.close() from the opener side (more reliable than the
+      // popup closing itself after cross-origin navigation).
+      // window.close() here is a secondary fallback in case the opener path fails.
+      setTimeout(() => {
+        console.log('[Callback] window.close() firing')
+        window.close()
+        // Last-resort: if this IS the main window (popup was blocked and the user
+        // went through OAuth on the current tab), redirect to the app.
+        setTimeout(() => { if (!window.closed) window.location.replace('/app') }, 300)
+      }, 100)
     }
 
+    // onAuthStateChange fires after Supabase finishes the PKCE code exchange
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) finish(session)
     })
 
-    // Also check for an already-exchanged session (e.g. Supabase finished PKCE
-    // exchange before our listener was registered)
+    // getSession() covers the case where the exchange completed before the
+    // listener was registered (e.g. implicit flow tokens already in the hash)
     supabase.auth.getSession().then(({ data, error }) => {
       if (data.session) finish(data.session)
-      else if (error) finish(null, error.message)
-      // If neither: PKCE exchange still in progress — onAuthStateChange will fire
+      else if (error)   finish(null, error.message)
+      // else: PKCE exchange in progress — onAuthStateChange will fire
     })
 
     return () => subscription.unsubscribe()
