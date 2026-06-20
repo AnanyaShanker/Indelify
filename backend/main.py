@@ -76,6 +76,8 @@ _ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
+    # Allow Vercel preview deployments automatically (URL changes on every deploy)
+    allow_origin_regex=r"https://indelify[^.]*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
