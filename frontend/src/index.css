@@ -806,6 +806,10 @@ body {
   background: var(--tab-active-bg);
 }
 
+.mobile-signin-btn {
+  display: none;
+}
+
 .topbar-inner {
   padding: 0 44px;
 }
@@ -838,6 +842,22 @@ body {
   }
   .hamburger-btn {
     display: flex;
+  }
+  .mobile-signin-btn {
+    display: flex;
+    align-items: center;
+    background: rgba(244,132,95,0.12);
+    border: 1px solid rgba(244,132,95,0.28);
+    border-radius: 8px;
+    padding: 7px 13px;
+    color: #F4845F;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
   }
 
   /* Topbar & content */

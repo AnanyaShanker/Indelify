@@ -346,13 +346,18 @@ export default function App() {
               <button
                 onClick={() => setShowAuthModal(true)}
                 style={{
-                  background: 'none', border: 'none', padding: 0,
-                  color: 'var(--text-faint)', fontSize: 12, cursor: 'pointer',
-                  fontFamily: "'Inter', sans-serif",
+                  background: 'rgba(244,132,95,0.10)', border: '1px solid rgba(244,132,95,0.22)',
+                  borderRadius: 8, padding: '7px 12px',
+                  color: '#F4845F', fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: "'Inter', sans-serif",
                   display: 'flex', alignItems: 'center', gap: 6,
+                  width: '100%', letterSpacing: '0.01em',
+                  transition: 'background 0.15s, border-color 0.15s',
                 }}
+                onMouseOver={e => { e.currentTarget.style.background = 'rgba(244,132,95,0.17)' }}
+                onMouseOut={e => { e.currentTarget.style.background = 'rgba(244,132,95,0.10)' }}
               >
-                <span style={{ color: '#F4845F', fontSize: 13 }}>✦</span>
+                <span style={{ fontSize: 13 }}>✦</span>
                 Sign in to save
               </button>
             )}
@@ -403,8 +408,16 @@ export default function App() {
               {current.desc}
             </div>
           </div>
-          <div style={{ marginLeft: 'auto' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <LangBadge langPref={langPref} />
+            {!user && (
+              <button
+                className="mobile-signin-btn"
+                onClick={() => setShowAuthModal(true)}
+              >
+                Sign in
+              </button>
+            )}
           </div>
           {/* Colored accent underline */}
           <div style={{
