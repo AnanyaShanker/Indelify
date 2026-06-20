@@ -29,9 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      // The opener always has permission to close its child popup, even after the popup
-      // visited cross-origin pages (Google, Supabase). Calling window.close() from
-      // *inside* the popup is blocked by Chrome in that case — so we close from here.
+      // Close from the opener — it always has permission regardless of where
+      // the popup navigated (Google, Supabase, back to our origin).
       if (session && popupRef.current && !popupRef.current.closed) {
         try { popupRef.current.close() } catch (_) {}
         popupRef.current = null
@@ -41,19 +40,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  function openPopup(url: string) {
+  // Open about:blank SYNCHRONOUSLY (within the user-gesture window) so the
+  // browser doesn't block it. We navigate it to the real OAuth URL afterward.
+  function openBlankPopup(): Window | null {
     const w = 500, h = 650
     const left = Math.round(window.screenX + (window.outerWidth  - w) / 2)
     const top  = Math.round(window.screenY + (window.outerHeight - h) / 2)
-    const popup = window.open(url, 'indelify-auth', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`)
-    if (!popup) {
-      window.location.href = url  // fallback: popup blocked by browser
+    return window.open('about:blank', 'indelify-auth', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`)
+  }
+
+  async function signInWithGoogle() {
+    const popup = openBlankPopup()   // sync — must happen before any await
+    const { data } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/auth/callback',
+        skipBrowserRedirect: true,
+      },
+    })
+    if (data?.url) {
+      if (popup) {
+        popup.location.href = data.url
+        popupRef.current = popup
+      } else {
+        window.location.href = data.url   // last-resort: popup was blocked
+      }
     } else {
-      popupRef.current = popup
+      popup?.close()
     }
   }
 
   async function signInWithSpotify() {
+    const popup = openBlankPopup()   // sync — must happen before any await
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'spotify',
       options: {
@@ -62,18 +80,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         skipBrowserRedirect: true,
       },
     })
-    if (data?.url) openPopup(data.url)
-  }
-
-  async function signInWithGoogle() {
-    const { data } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-        skipBrowserRedirect: true,
-      },
-    })
-    if (data?.url) openPopup(data.url)
+    if (data?.url) {
+      if (popup) {
+        popup.location.href = data.url
+        popupRef.current = popup
+      } else {
+        window.location.href = data.url
+      }
+    } else {
+      popup?.close()
+    }
   }
 
   async function signOut() {
