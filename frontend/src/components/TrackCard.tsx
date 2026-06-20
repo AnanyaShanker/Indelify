@@ -91,7 +91,7 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <div className="track-actions" style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               {rightBadge}
               {track.spotify_url ? (
                 <a
@@ -138,6 +138,7 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
                   href={track.genius_url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="track-genius-btn"
                   style={{
                     display: 'flex', alignItems: 'center', gap: 5,
                     background: 'rgba(255,215,0,0.06)',

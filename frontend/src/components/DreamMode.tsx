@@ -179,7 +179,7 @@ export default function DreamMode({ langPref, onResult, onSavePlaylist, onFullsc
           }} />
           <AmbientLayer zIndex={9999} hue={dominantHue} />
           <div style={{ position: 'fixed', inset: 0, zIndex: 10000, overflowY: 'auto' }}>
-            <div style={{ maxWidth: 780, margin: '0 auto', padding: '36px 44px' }}>
+            <div className="dream-portal-content">
               {loading && <DreamLoading />}
               {result && !loading && (
                 <DreamReveal
@@ -317,9 +317,9 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
           fontSize: 24, color: 'rgba(200,175,255,0.88)',
           animation: 'orbPulse 5.5s ease-in-out infinite',
         }}>◐</div>
-        <h2 style={{
+        <h2 className="section-heading" style={{
           fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 36, fontWeight: 600, margin: 0,
+          fontSize: 'clamp(24px, 7vw, 36px)', fontWeight: 600, margin: 0,
           background: 'linear-gradient(135deg, #C4A0EC 0%, #9B7FE8 50%, #D8B4F8 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
           animation: 'textGlow 7s ease-in-out infinite',
@@ -647,7 +647,7 @@ function DreamReveal({
 function DreamImage({ src, attributes, onColorExtracted, hue }: { src: string; attributes?: string[]; onColorExtracted: (h: number) => void; hue: number | null }) {
   const t = buildTheme(hue)
   return (
-    <div style={{ position: 'relative', borderRadius: 26, overflow: 'hidden', marginBottom: 44, height: 400 }}>
+    <div style={{ position: 'relative', borderRadius: 26, overflow: 'hidden', marginBottom: 44, height: 'clamp(220px, 50vw, 400px)' }}>
       <img
         src={src}
         alt="Dream"
@@ -751,7 +751,7 @@ function DreamTrackFragment({ track, index, total, isWaking, theme: t }: {
         )}
       </div>
       {open && track.reason && (
-        <div style={{ marginTop: 14, marginLeft: 84, fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontStyle: 'italic', lineHeight: 1.75, color: t.textBright, borderLeft: `1.5px solid ${t.trackBorder}`, paddingLeft: 14, animation: 'fadeUpBlur 0.45s ease forwards', transition: 'color 1.8s ease, border-color 1.8s ease' }}>
+        <div style={{ marginTop: 14, marginLeft: 'clamp(0px, 10vw, 84px)', fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontStyle: 'italic', lineHeight: 1.75, color: t.textBright, borderLeft: `1.5px solid ${t.trackBorder}`, paddingLeft: 14, animation: 'fadeUpBlur 0.45s ease forwards', transition: 'color 1.8s ease, border-color 1.8s ease' }}>
           {track.reason}
         </div>
       )}

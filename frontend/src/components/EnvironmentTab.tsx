@@ -130,9 +130,9 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
           fontSize: 26, color: 'rgba(160,230,220,0.92)',
           animation: 'pulseGlow 5.5s ease-in-out infinite',
         }}>◎</div>
-        <h2 style={{
+        <h2 className="section-heading" style={{
           fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 36, fontWeight: 600, margin: 0,
+          fontSize: 'clamp(24px, 7vw, 36px)', fontWeight: 600, margin: 0,
           background: 'linear-gradient(135deg, #6EC5B8 0%, #A8E6DF 48%, #D4F0EC 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>My Environment</h2>
@@ -167,7 +167,8 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
             color: 'rgba(110,197,184,0.60)', fontSize: 28,
           }}>◎</div>
           <div style={{ color: 'rgba(110,197,184,0.78)', fontSize: 15, marginBottom: 6 }}>
-            Drag & drop photos here, or click to browse
+            <span className="env-upload-desktop">Drag & drop photos here, or click to browse</span>
+            <span className="env-upload-mobile">Tap to upload photos</span>
           </div>
           <div style={{ color: 'rgba(110,197,184,0.42)', fontSize: 13 }}>
             JPG, PNG, WEBP · up to {MAX_IMAGES} photos
@@ -221,10 +222,11 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
         onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
 
       {files.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <div className="env-action-row">
           <button
             onClick={handleSubmit}
             disabled={loading}
+            className="env-analyze-btn"
             style={{
               background: !loading
                 ? 'linear-gradient(135deg, rgba(70,175,162,0.92) 0%, rgba(35,130,118,0.96) 100%)'
@@ -246,7 +248,7 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
           </button>
           <button
             onClick={clearAll}
-            style={{ background: 'none', border: '1px solid var(--border-input)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 13 }}
+            style={{ background: 'none', border: '1px solid var(--border-input)', color: 'var(--text-secondary)', borderRadius: 8, padding: '10px 14px', cursor: 'pointer', fontSize: 13 }}
           >Clear all</button>
         </div>
       )}

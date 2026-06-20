@@ -121,9 +121,9 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
           fontSize: 26, color: 'rgba(255,235,155,0.92)',
           animation: 'pulseGlow 5.5s ease-in-out infinite',
         }}>♩</div>
-        <h2 style={{
+        <h2 className="section-heading" style={{
           fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 36, fontWeight: 600, margin: 0,
+          fontSize: 'clamp(24px, 7vw, 36px)', fontWeight: 600, margin: 0,
           background: 'linear-gradient(135deg, #E8C06A 0%, #F5D98A 48%, #FFE9A0 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>Lyrical Theme</h2>
@@ -138,7 +138,7 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
 
       {/* Search form */}
       <form onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <div className="lyrics-form-row">
           <label htmlFor="lyrics-input" className="sr-only">Word or theme to search for</label>
           <input
             id="lyrics-input"
@@ -156,7 +156,7 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
               borderRadius: 14, padding: '14px 20px',
               color: 'var(--text-primary)',
               fontFamily: "'Cormorant Garamond', serif",
-              fontSize: 17, lineHeight: 1.5,
+              fontSize: 'max(16px, 17px)', lineHeight: 1.5,
               transition: 'box-shadow 0.3s',
             }}
             onFocus={e => { e.currentTarget.style.boxShadow = '0 0 0 1.5px rgba(232,192,106,0.7), 0 0 40px rgba(200,160,60,0.12)' }}
@@ -268,7 +268,7 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
           )}
 
           {/* Track list header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+          <div className="lyrics-result-header">
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               Songs that carry the theme of{' '}
               <span style={{ color: '#E8C06A', fontStyle: 'italic' }}>"{result.theme || word}"</span>

@@ -252,9 +252,9 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
           fontSize: 26, color: 'rgba(255,195,160,0.92)',
           animation: 'pulseGlow 5.5s ease-in-out infinite',
         }}>✦</div>
-        <h2 style={{
+        <h2 className="section-heading" style={{
           fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 36, fontWeight: 600, margin: 0,
+          fontSize: 'clamp(24px, 7vw, 36px)', fontWeight: 600, margin: 0,
           background: 'linear-gradient(135deg, #F4845F 0%, #FFB899 48%, #FFCBA4 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
         }}>Mood Search</h2>

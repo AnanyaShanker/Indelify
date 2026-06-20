@@ -127,6 +127,12 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 #root {
@@ -743,6 +749,21 @@ body {
   flex-shrink: 0;
 }
 
+/* ── Environment upload text: drag on desktop, tap on mobile ── */
+.env-upload-mobile { display: none; }
+.env-upload-desktop { display: inline; }
+
+/* ── App footer default ── */
+.app-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 18px 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-sidebar);
+  margin-top: auto;
+}
+
 /* ── Per-feature textarea placeholder colors ────────────────────────────────── */
 
 .mood-textarea::placeholder   { color: rgba(244,132,95,0.40); font-style: italic; }
@@ -769,6 +790,37 @@ body {
 [data-theme="light"] .intensity-low    { color: #166534; border-color: rgba(22,101,52,0.35);  background: rgba(22,101,52,0.08);  }
 [data-theme="light"] .intensity-medium { color: #9a3412; border-color: rgba(154,52,18,0.30);  background: rgba(154,52,18,0.08);  }
 [data-theme="light"] .intensity-high   { color: #9f1239; border-color: rgba(159,18,57,0.30);  background: rgba(159,18,57,0.08);  }
+
+/* ── Responsive utility classes (desktop baseline) ──────────────────────────── */
+
+.topbar-lang { display: flex; align-items: center; }
+
+.lyrics-form-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.lyrics-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.env-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dream-portal-content {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 36px 44px;
+}
 
 /* ── App sidebar — responsive ────────────────────────────────────────────────── */
 
@@ -876,6 +928,10 @@ body {
   }
   .landing-footer {
     padding: 18px 24px;
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+    align-items: center;
   }
   .scene-cards-grid {
     grid-template-columns: 1fr;
@@ -886,5 +942,80 @@ body {
   }
   .landing-hero-btn {
     padding: 14px 36px;
+  }
+
+  /* ── Topbar: hide lang badge (it lives in sidebar), show sign-in btn ── */
+  .topbar-lang {
+    display: none;
+  }
+
+  /* ── Section headings scale down on mobile ── */
+  .section-heading {
+    font-size: clamp(24px, 7vw, 36px) !important;
+  }
+
+  /* ── App footer stack ── */
+  .app-footer {
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 14px 20px !important;
+    text-align: center;
+    align-items: center !important;
+  }
+
+  /* ── Lyrics form: stack input + button vertically ── */
+  .lyrics-form-row {
+    flex-direction: column;
+  }
+  .lyrics-form-row > button {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* ── Lyrics result header: allow wrapping ── */
+  .lyrics-result-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Environment action row: stack buttons ── */
+  .env-action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .env-analyze-btn {
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* ── Dream portal: responsive padding ── */
+  .dream-portal-content {
+    padding: 24px 20px !important;
+  }
+
+  /* ── Track card: hide Genius on mobile to prevent overflow ── */
+  .track-genius-btn {
+    display: none;
+  }
+
+  /* ── Input fields: min 16px to prevent iOS auto-zoom ── */
+  .input-field {
+    font-size: 16px;
+  }
+
+  /* ── Environment upload: show tap text, hide drag text ── */
+  .env-upload-mobile  { display: inline; }
+  .env-upload-desktop { display: none; }
+
+  /* ── Touch target minimum 44px ── */
+  .tab-btn {
+    min-height: 44px;
+  }
+  .hamburger-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    justify-content: center;
   }
 }

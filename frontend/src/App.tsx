@@ -409,7 +409,9 @@ export default function App() {
             </div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <LangBadge langPref={langPref} />
+            <div className="topbar-lang">
+              <LangBadge langPref={langPref} />
+            </div>
             {!user && (
               <button
                 className="mobile-signin-btn"
@@ -496,7 +498,7 @@ export default function App() {
 
 function AppFooter() {
   return (
-    <footer style={{
+    <footer className="app-footer" style={{
       borderTop: '1px solid var(--border-subtle)',
       padding: '18px 44px',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
