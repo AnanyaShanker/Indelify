@@ -33,26 +33,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  function openPopup(url: string) {
+    const w = 500, h = 650
+    const left = Math.round(window.screenX + (window.outerWidth  - w) / 2)
+    const top  = Math.round(window.screenY + (window.outerHeight - h) / 2)
+    const popup = window.open(url, 'indelify-auth', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`)
+    if (!popup) window.location.href = url  // fallback if popup blocked
+  }
+
   async function signInWithSpotify() {
-    await supabase.auth.signInWithOAuth({
+    const { data } = await supabase.auth.signInWithOAuth({
       provider: 'spotify',
       options: {
         scopes: 'user-read-email user-read-private playlist-modify-public playlist-modify-private',
-        queryParams: {
-          scope: 'user-read-email user-read-private playlist-modify-public playlist-modify-private',
-        },
-        redirectTo: window.location.origin + '/app',
+        redirectTo: window.location.origin + '/auth/callback',
+        skipBrowserRedirect: true,
       },
     })
+    if (data?.url) openPopup(data.url)
   }
 
   async function signInWithGoogle() {
-    await supabase.auth.signInWithOAuth({
+    const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/app',
+        redirectTo: window.location.origin + '/auth/callback',
+        skipBrowserRedirect: true,
       },
     })
+    if (data?.url) openPopup(data.url)
   }
 
   async function signOut() {

@@ -6,6 +6,7 @@ import Landing from './pages/Landing'
 import App from './App'
 import NotFound from './pages/NotFound'
 import SpotifyWriteCallback from './pages/SpotifyWriteCallback'
+import AuthCallback from './pages/AuthCallback'
 import ErrorBoundary from './components/ErrorBoundary'
 import { AuthProvider } from './contexts/AuthContext'
 
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/app" element={<App />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/spotify-write-callback" element={<SpotifyWriteCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
