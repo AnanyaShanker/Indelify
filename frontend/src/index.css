@@ -267,9 +267,9 @@ body {
 
 .tab-btn {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 9px 16px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
@@ -278,7 +278,6 @@ body {
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-  white-space: nowrap;
   width: 100%;
   text-align: left;
   font-family: 'Inter', sans-serif;
@@ -428,6 +427,12 @@ body {
 }
 
 /* ── Dream Mode keyframes ────────────────────────────────────────────────────── */
+
+@keyframes recPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(248,113,113,0.70); }
+  70%  { box-shadow: 0 0 0 8px rgba(248,113,113,0);    }
+  100% { box-shadow: 0 0 0 0   rgba(248,113,113,0);    }
+}
 
 @keyframes dreamEnterBlur {
   from { opacity: 0; filter: blur(28px) brightness(0.12) saturate(0.1); }
@@ -691,6 +696,80 @@ body {
   animation: scrollBounce 2.2s ease-in-out infinite;
 }
 
+/* ── Toast ───────────────────────────────────────────────────────────────────── */
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0)    scale(1);    }
+  to   { opacity: 0; transform: translateY(8px)  scale(0.97); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: toastIn 0.25s ease forwards;
+}
+
+.toast.leaving {
+  animation: toastOut 0.22s ease forwards;
+}
+
+.toast-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Per-feature textarea placeholder colors ────────────────────────────────── */
+
+.mood-textarea::placeholder   { color: rgba(244,132,95,0.40); font-style: italic; }
+.dream-textarea::placeholder  { color: rgba(138,100,210,0.42); font-style: italic; }
+.lyrics-input::placeholder    { color: rgba(232,192,106,0.42); font-style: italic; }
+
+/* ── Light mode component overrides ─────────────────────────────────────────── */
+
+[data-theme="light"] .error-banner {
+  background: rgba(180, 30, 50, 0.07);
+  border-color: rgba(180, 30, 50, 0.22);
+  color: rgba(140, 20, 40, 0.85);
+}
+
+/* Ambient particle layers: full opacity in dark, pulled back in light */
+.ambient-particle-layer { transition: opacity 0.4s; }
+[data-theme="light"] .ambient-particle-layer { opacity: 0.28; }
+
+/* Dream textarea: dreamy pulsing glow only in dark mode */
+.dream-textarea { animation: inputGlow 5s ease-in-out infinite; }
+[data-theme="light"] .dream-textarea { animation: none; box-shadow: 0 0 0 1px rgba(120,90,210,0.20) !important; }
+
+/* Intensity badges: light-mode variants with darker text for contrast */
+[data-theme="light"] .intensity-low    { color: #166534; border-color: rgba(22,101,52,0.35);  background: rgba(22,101,52,0.08);  }
+[data-theme="light"] .intensity-medium { color: #9a3412; border-color: rgba(154,52,18,0.30);  background: rgba(154,52,18,0.08);  }
+[data-theme="light"] .intensity-high   { color: #9f1239; border-color: rgba(159,18,57,0.30);  background: rgba(159,18,57,0.08);  }
+
 /* ── App sidebar — responsive ────────────────────────────────────────────────── */
 
 .app-sidebar {
@@ -734,6 +813,8 @@ body {
 .main-content-area {
   padding: 36px 44px;
   max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* ── Mobile breakpoints ──────────────────────────────────────────────────────── */
@@ -766,6 +847,7 @@ body {
   .main-content-area {
     padding: 24px 20px;
     max-width: 100%;
+    margin: 0 auto;
   }
 
   /* Landing */

@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import api, { extractError } from '../api'
-import type { LangPref, DreamResult, HistoryEntry } from '../types'
+import type { LangPref, DreamResult, SearchResult } from '../types'
+import { useTheme } from '../hooks/useTheme'
 
-// Deterministic particle list — same on every render
 const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
   id:     i,
   left:   `${5  + (i * 3.61) % 88}%`,
@@ -86,19 +86,32 @@ function buildTheme(hue: number | null): Theme {
 
 interface Props {
   langPref: LangPref
-  onResult: (entry: Omit<HistoryEntry, 'id' | 'ts'>) => void
+  onResult: (entry: SearchResult) => void
+  onSavePlaylist?: (entry: SearchResult) => void
   onFullscreenChange?: (fs: boolean) => void
+  initialResult?: DreamResult
+  initialInput?: string
+  autoSearch?: string
 }
 
-export default function DreamMode({ langPref, onResult, onFullscreenChange }: Props) {
-  const [dream,       setDream]       = useState('')
+export default function DreamMode({ langPref, onResult, onSavePlaylist, onFullscreenChange, initialResult, initialInput, autoSearch }: Props) {
+  const [dream,       setDream]       = useState(initialInput ?? autoSearch ?? '')
   const [loading,     setLoading]     = useState(false)
-  const [result,      setResult]      = useState<DreamResult | null>(null)
+  const [result,      setResult]      = useState<DreamResult | null>(initialResult ?? null)
   const [error,       setError]       = useState<string | null>(null)
   const [dominantHue, setDominantHue] = useState<number | null>(null)
-  const [lastDream,   setLastDream]   = useState('')
+  const [lastDream,   setLastDream]   = useState(initialInput ?? autoSearch ?? '')
+  const [showPortal,  setShowPortal]  = useState(!!initialResult)
+  const pendingRef                    = useRef(false)
 
-  const isFullScreen = loading || !!result
+  useEffect(() => {
+    if (autoSearch && !initialResult) {
+      doDream(autoSearch)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const isFullScreen = showPortal
 
   useEffect(() => {
     if (!isFullScreen) return
@@ -110,7 +123,7 @@ export default function DreamMode({ langPref, onResult, onFullscreenChange }: Pr
     onFullscreenChange?.(isFullScreen)
   }, [isFullScreen, onFullscreenChange])
 
-  const handleReset = useCallback(() => { setResult(null); setDream('') }, [])
+  const handleReset = useCallback(() => { setResult(null); setDream(''); setError(null); setShowPortal(false) }, [])
 
   useEffect(() => {
     if (!result) return
@@ -119,16 +132,20 @@ export default function DreamMode({ langPref, onResult, onFullscreenChange }: Pr
     return () => window.removeEventListener('keydown', onKey)
   }, [result, handleReset])
 
-  async function doDream(input: string) {
-    setLoading(true); setResult(null); setError(null)
+  async function doDream(input: string, refresh = false) {
+    if (pendingRef.current) return
+    pendingRef.current = true
+    setLoading(true); setResult(null); setError(null); setShowPortal(true)
     try {
-      const { data } = await api.post<DreamResult>('/analyze/dream', { dream: input, language_preference: langPref })
+      const { data } = await api.post<DreamResult>('/analyze/dream', { dream: input, language_preference: langPref, refresh })
       setResult(data)
-      onResult({ tab: 'dream', label: data.mood_label, input, trackCount: data.tracks.length })
+      const { dream_image: _, ...metaWithoutImage } = data as DreamResult & { dream_image?: string }
+      onResult({ tab: 'dream', label: data.mood_label, input, tracks: data.tracks, meta: metaWithoutImage as unknown })
     } catch (err: unknown) {
       setError(extractError(err))
     } finally {
       setLoading(false)
+      pendingRef.current = false
     }
   }
 
@@ -145,24 +162,7 @@ export default function DreamMode({ langPref, onResult, onFullscreenChange }: Pr
       <div style={{ position: 'relative', zIndex: 1 }}>
         {!isFullScreen && (
           <div style={{ animation: 'fadeUpBlur 1s ease forwards' }}>
-            <DreamForm dream={dream} setDream={setDream} onSubmit={handleSubmit} />
-          </div>
-        )}
-        {error && !isFullScreen && (
-          <div style={{ marginTop: 20 }}>
-            <div style={{
-              background: 'rgba(100,20,40,0.12)',
-              border: '1px solid rgba(175,55,75,0.2)',
-              borderRadius: 14, padding: '16px 20px',
-              color: 'rgba(240,155,165,0.82)', fontSize: 14,
-              marginBottom: 12,
-            }}>{error}</div>
-            {lastDream && (
-              <button
-                onClick={() => doDream(lastDream)}
-                style={{ background: 'none', border: '1px solid rgba(138,100,210,0.3)', color: 'rgba(200,175,255,0.65)', borderRadius: 10, padding: '8px 18px', fontSize: 13, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
-              >Try again</button>
-            )}
+            <DreamForm dream={dream} setDream={setDream} onSubmit={handleSubmit} langPref={langPref} />
           </div>
         )}
       </div>
@@ -185,9 +185,35 @@ export default function DreamMode({ langPref, onResult, onFullscreenChange }: Pr
                 <DreamReveal
                   result={result}
                   onReset={handleReset}
+                  onRefresh={() => doDream(lastDream, true)}
                   onColorExtracted={setDominantHue}
                   hue={dominantHue}
+                  dreamText={lastDream}
+                  onSavePlaylist={onSavePlaylist}
                 />
+              )}
+              {error && !loading && !result && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 20, animation: 'fadeIn 0.4s ease' }}>
+                  <div style={{
+                    background: 'rgba(100,20,40,0.18)',
+                    border: '1px solid rgba(175,55,75,0.28)',
+                    borderRadius: 16, padding: '20px 28px',
+                    color: 'rgba(240,155,165,0.88)', fontSize: 15,
+                    maxWidth: 400, textAlign: 'center', lineHeight: 1.65,
+                  }}>{error}</div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {lastDream && (
+                      <button
+                        onClick={() => doDream(lastDream)}
+                        style={{ background: 'none', border: '1px solid rgba(138,100,210,0.35)', color: 'rgba(200,175,255,0.75)', borderRadius: 10, padding: '9px 20px', fontSize: 13, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+                      >Try again</button>
+                    )}
+                    <button
+                      onClick={handleReset}
+                      style={{ background: 'none', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.38)', borderRadius: 10, padding: '9px 20px', fontSize: 13, cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+                    >New dream</button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -226,11 +252,63 @@ function AmbientLayer({ zIndex, hue }: { zIndex: number; hue: number | null }) {
   )
 }
 
-function DreamForm({ dream, setDream, onSubmit }: { dream: string; setDream: (v: string) => void; onSubmit: (e: React.FormEvent) => void }) {
+function DreamForm({ dream, setDream, onSubmit, langPref }: {
+  dream: string
+  setDream: (v: string) => void
+  onSubmit: (e: React.FormEvent) => void
+  langPref: LangPref
+}) {
   const canSubmit = dream.trim().length > 0
+  const isLight = useTheme()
+  const [recording, setRecording] = useState(false)
+  const recognitionRef = useRef<any>(null)
+  const baseTextRef    = useRef('')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const SpeechRec = typeof window !== 'undefined'
+    ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+    : null
+  const micSupported = !!SpeechRec
+
+  useEffect(() => () => { recognitionRef.current?.stop() }, [])
+
+  function toggleRecording() {
+    if (recording) {
+      recognitionRef.current?.stop()
+      setRecording(false)
+      return
+    }
+
+    const rec = new SpeechRec()
+    rec.continuous      = true
+    rec.interimResults  = true
+    // Fix #3: default to en-US when langPref is 'all' — empty string is unpredictable across browsers
+    rec.lang = langPref === 'hindi-bollywood' ? 'hi-IN' : 'en-US'
+
+    baseTextRef.current = dream
+
+    rec.onresult = (event: any) => {
+      let finals = '', interim = ''
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finals += event.results[i][0].transcript + ' '
+        else interim += event.results[i][0].transcript
+      }
+      const spoken = (finals + interim).trim()
+      const base   = baseTextRef.current.trimEnd()
+      setDream(base + (base && spoken ? ' ' : '') + spoken)
+    }
+
+    rec.onend  = () => setRecording(false)
+    rec.onerror = () => setRecording(false)
+
+    recognitionRef.current = rec
+    rec.start()
+    setRecording(true)
+  }
+
   return (
     <div>
-      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{
           width: 60, height: 60, borderRadius: '50%', margin: '0 auto 20px',
           background: 'radial-gradient(circle, rgba(115,68,210,0.52) 0%, rgba(55,16,128,0.22) 100%)',
@@ -247,7 +325,7 @@ function DreamForm({ dream, setDream, onSubmit }: { dream: string; setDream: (v:
           animation: 'textGlow 7s ease-in-out infinite',
         }}>Dream Mode</h2>
         <p style={{
-          color: 'rgba(150,128,200,0.52)', fontSize: 15.5, marginTop: 12,
+          color: isLight ? 'rgba(88,65,165,0.78)' : 'rgba(150,128,200,0.52)', fontSize: 15.5, marginTop: 12,
           lineHeight: 1.75, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic',
         }}>
           Describe your last dream. Even the fragments.<br />
@@ -260,33 +338,79 @@ function DreamForm({ dream, setDream, onSubmit }: { dream: string; setDream: (v:
           <label htmlFor="dream-input" className="sr-only">Describe your dream</label>
           <textarea
             id="dream-input"
-            rows={6}
+            className="dream-textarea"
+            rows={4}
             value={dream}
             onChange={e => setDream(e.target.value)}
             placeholder="I was in a city that kept shifting, and someone I used to know was there but their face kept changing. There was water, always water, rising slowly…"
             style={{
               width: '100%', boxSizing: 'border-box',
-              background: 'rgba(5,1,17,0.88)',
+              background: 'var(--bg-input)',
               backdropFilter: 'blur(22px)',
               border: 'none', outline: 'none', borderRadius: 20,
-              padding: '22px 26px',
-              color: 'rgba(228,215,255,0.9)',
+              padding: '22px 26px 22px 26px',
+              color: 'var(--text-primary)',
               fontFamily: "'Cormorant Garamond', Georgia, serif",
               fontSize: 17.5, lineHeight: 1.8, resize: 'none',
               fontStyle: dream ? 'normal' : 'italic',
-              animation: 'inputGlow 5s ease-in-out infinite',
               transition: 'box-shadow 0.3s',
             }}
             onFocus={e => { e.target.style.boxShadow = '0 0 0 1.5px rgba(138,100,210,0.7), 0 0 50px rgba(80,35,155,0.18), inset 0 0 60px rgba(80,35,155,0.1)' }}
             onBlur={e => { e.target.style.boxShadow = '' }}
           />
+
           <span style={{
             position: 'absolute', bottom: 16, right: 20,
             fontSize: 18, color: 'rgba(138,100,210,0.28)',
             animation: 'orbPulse 4s ease-in-out infinite',
             pointerEvents: 'none',
           }}>✦</span>
+
+          {recording && (
+            <span style={{
+              position: 'absolute', top: 14, right: 14,
+              width: 10, height: 10, borderRadius: '50%',
+              background: '#f87171',
+              boxShadow: '0 0 0 0 rgba(248,113,113,0.6)',
+              animation: 'recPulse 1.2s ease-in-out infinite',
+              pointerEvents: 'none',
+            }} />
+          )}
         </div>
+
+        {micSupported && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <button
+              type="button"
+              onClick={toggleRecording}
+              title={recording ? 'Stop recording' : 'Speak your dream'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: recording ? 'rgba(248,113,113,0.12)' : 'rgba(138,100,210,0.10)',
+                border: `1px solid ${recording ? 'rgba(248,113,113,0.40)' : 'rgba(138,100,210,0.28)'}`,
+                borderRadius: 10, padding: '8px 16px',
+                color: recording ? '#fca5a5' : 'rgba(196,160,236,0.72)',
+                fontSize: 12, fontWeight: 600, letterSpacing: '0.08em',
+                fontFamily: "'Inter', sans-serif",
+                cursor: 'pointer', transition: 'all 0.25s',
+              }}
+              onMouseEnter={e => { if (!recording) { e.currentTarget.style.background = 'rgba(138,100,210,0.18)'; e.currentTarget.style.borderColor = 'rgba(138,100,210,0.50)'; e.currentTarget.style.color = 'rgba(220,190,255,0.9)' } }}
+              onMouseLeave={e => { if (!recording) { e.currentTarget.style.background = 'rgba(138,100,210,0.10)'; e.currentTarget.style.borderColor = 'rgba(138,100,210,0.28)'; e.currentTarget.style.color = 'rgba(196,160,236,0.72)' } }}
+            >
+              <MicIcon recording={recording} />
+              {recording ? 'Stop recording' : 'Speak instead'}
+            </button>
+            {recording && (
+              <span style={{
+                fontSize: 11, color: 'rgba(248,113,113,0.65)',
+                letterSpacing: '0.10em', fontFamily: "'Inter', sans-serif",
+                animation: 'fadeInUp 0.3s ease both',
+              }}>
+                listening…
+              </span>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"
@@ -316,6 +440,18 @@ function DreamForm({ dream, setDream, onSubmit }: { dream: string; setDream: (v:
   )
 }
 
+function MicIcon({ recording }: { recording: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="9" y1="22" x2="15" y2="22" />
+      {recording && <circle cx="12" cy="8" r="2" fill="currentColor" opacity="0.5" />}
+    </svg>
+  )
+}
+
 function DreamLoading() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 420, gap: 30, animation: 'dreamEnterBlur 0.7s ease forwards' }}>
@@ -336,8 +472,20 @@ function DreamLoading() {
   )
 }
 
-function DreamReveal({ result, onReset, onColorExtracted, hue }: { result: DreamResult; onReset: () => void; onColorExtracted: (h: number) => void; hue: number | null }) {
+function DreamReveal({
+  result, onReset, onRefresh, onColorExtracted, hue, dreamText, onSavePlaylist,
+}: {
+  result: DreamResult
+  onReset: () => void
+  onRefresh: () => void
+  onColorExtracted: (h: number) => void
+  hue: number | null
+  dreamText: string
+  onSavePlaylist?: (entry: SearchResult) => void
+}) {
   const [phase, setPhase] = useState(0)
+  const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const t = buildTheme(hue)
 
   useEffect(() => {
@@ -351,6 +499,24 @@ function DreamReveal({ result, onReset, onColorExtracted, hue }: { result: Dream
     ]
     return () => timers.forEach(clearTimeout)
   }, [result])
+
+  function copyTracks() {
+    if (!result.tracks?.length) return
+    const lines = result.tracks.map((t, i) => `${i + 1}. ${t.title} — ${t.artist}`).join('\n')
+    navigator.clipboard.writeText(`${result.mood_label}\n\n${lines}`)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function copyLink() {
+    const url = `${window.location.origin}/app?tab=dream&q=${encodeURIComponent(dreamText)}`
+    navigator.clipboard.writeText(url)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  // Match waking transition track by title (case-insensitive)
+  const wakingTitle = result.waking_transition_track?.toLowerCase().trim()
 
   return (
     <div style={{ animation: 'dreamEnterBlur 1.4s ease forwards' }}>
@@ -388,7 +554,9 @@ function DreamReveal({ result, onReset, onColorExtracted, hue }: { result: Dream
                 artifacts recovered
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>
-                {result.symbolic_core.map((sym, i) => <SymbolArtifact key={i} symbol={sym} index={i} theme={t} />)}
+                {result.symbolic_core.map((artifact, i) => (
+                  <SymbolArtifact key={i} artifact={artifact} index={i} theme={t} />
+                ))}
               </div>
             </div>
           )}
@@ -414,7 +582,14 @@ function DreamReveal({ result, onReset, onColorExtracted, hue }: { result: Dream
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {result.tracks.map((track, i) => (
-              <DreamTrackFragment key={i} track={track} index={i} total={result.tracks.length} theme={t} />
+              <DreamTrackFragment
+                key={i}
+                track={track}
+                index={i}
+                total={result.tracks.length}
+                isWaking={!!wakingTitle && track.title.toLowerCase().trim() === wakingTitle}
+                theme={t}
+              />
             ))}
           </div>
         </div>
@@ -423,6 +598,38 @@ function DreamReveal({ result, onReset, onColorExtracted, hue }: { result: Dream
       {phase >= 5 && (
         <div style={{ textAlign: 'center', paddingBottom: 48, animation: 'fadeUpBlur 1s ease forwards' }}>
           <div style={{ width: 80, height: 1, margin: '0 auto 30px', background: `linear-gradient(to right, transparent, ${t.shimmer}, transparent)`, transition: 'background 1.8s ease' }} />
+
+          {/* Save / copy / share / refresh buttons */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 22, flexWrap: 'wrap' }}>
+            <button
+              onClick={onRefresh}
+              title="Get different songs for this dream"
+              style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 14px', color: t.textMid, fontSize: 14, cursor: 'pointer', transition: 'all 0.3s', lineHeight: 1 }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid }}
+            >↻</button>
+            {onSavePlaylist && (
+              <button
+                onClick={() => onSavePlaylist({ tab: 'dream', label: result.mood_label, input: dreamText, tracks: result.tracks })}
+                style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 20px', color: t.textMid, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.3s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid }}
+              >save playlist</button>
+            )}
+            <button
+              onClick={copyTracks}
+              style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 20px', color: copied ? 'rgba(200,175,255,0.88)' : t.textMid, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.3s' }}
+              onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright } }}
+              onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid } }}
+            >{copied ? '✦ copied' : 'copy list'}</button>
+            <button
+              onClick={copyLink}
+              style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 20px', color: linkCopied ? 'rgba(200,175,255,0.88)' : t.textMid, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.3s' }}
+              onMouseEnter={e => { if (!linkCopied) { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright } }}
+              onMouseLeave={e => { if (!linkCopied) { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid } }}
+            >{linkCopied ? '✦ link copied' : 'share'}</button>
+          </div>
+
           <button
             onClick={onReset}
             style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '10px 30px', color: t.textMid, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.35s' }}
@@ -466,29 +673,45 @@ function DreamImage({ src, attributes, onColorExtracted, hue }: { src: string; a
 
 const NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
 
-function SymbolArtifact({ symbol, index, theme: t }: { symbol: string; index: number; theme: Theme }) {
-  const [held, setHeld] = useState(false)
+// Fix #2: artifact is now {symbol, interpretation}; label changed to "tap to examine"
+function SymbolArtifact({ artifact, index, theme: t }: {
+  artifact: { symbol: string; interpretation: string }
+  index: number
+  theme: Theme
+}) {
+  const [open, setOpen] = useState(false)
   return (
     <div
-      onClick={() => setHeld(h => !h)}
-      style={{ position: 'relative', padding: '22px 30px', borderRadius: 18, background: held ? t.glowMid : 'rgba(12,4,32,0.72)', border: `1px solid ${held ? t.borderStrong : t.borderFaint}`, cursor: 'pointer', backdropFilter: 'blur(20px)', textAlign: 'center', minWidth: 148, transition: 'background 0.4s, border-color 0.4s, box-shadow 0.4s', boxShadow: held ? `0 0 40px ${t.shadowMid}, 0 0 80px ${t.shadowFaint}` : 'none', animation: `symbolReveal 0.9s ${index * 0.22}s ease both, symbolFloat ${5.5 + index * 1.1}s ${index * 0.9}s ease-in-out infinite` }}
+      onClick={() => setOpen(o => !o)}
+      style={{ position: 'relative', padding: '22px 30px', borderRadius: 18, background: open ? t.glowMid : 'rgba(12,4,32,0.72)', border: `1px solid ${open ? t.borderStrong : t.borderFaint}`, cursor: 'pointer', backdropFilter: 'blur(20px)', textAlign: 'center', minWidth: 148, transition: 'background 0.4s, border-color 0.4s, box-shadow 0.4s', boxShadow: open ? `0 0 40px ${t.shadowMid}, 0 0 80px ${t.shadowFaint}` : 'none', animation: `symbolReveal 0.9s ${index * 0.22}s ease both, symbolFloat ${5.5 + index * 1.1}s ${index * 0.9}s ease-in-out infinite` }}
     >
-      <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: held ? t.borderStrong : t.textFaint, marginBottom: 10, fontFamily: "'Inter', sans-serif", transition: 'color 0.4s' }}>
+      <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: open ? t.borderStrong : t.textFaint, marginBottom: 10, fontFamily: "'Inter', sans-serif", transition: 'color 0.4s' }}>
         {NUMERALS[index] ?? index + 1}
       </div>
-      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 21, fontStyle: 'italic', color: held ? 'rgba(230,212,255,0.96)' : 'rgba(185,160,242,0.72)', lineHeight: 1.3, marginBottom: held ? 12 : 6, transition: 'color 0.4s' }}>
-        {symbol}
+      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 21, fontStyle: 'italic', color: open ? 'rgba(230,212,255,0.96)' : 'rgba(185,160,242,0.72)', lineHeight: 1.3, marginBottom: open ? 12 : 6, transition: 'color 0.4s' }}>
+        {artifact.symbol}
       </div>
-      {!held && <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.textFaint, fontFamily: "'Inter', sans-serif" }}>hold to examine</div>}
-      {held && <div style={{ fontSize: 13.5, fontStyle: 'italic', lineHeight: 1.6, color: t.textBright, fontFamily: "'Cormorant Garamond', serif", animation: 'fadeUpBlur 0.45s ease forwards' }}>a fragment that returned with you</div>}
-      {held && <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: '50%', background: `radial-gradient(circle, ${t.glowMid} 0%, transparent 70%)`, pointerEvents: 'none', animation: 'orbPulse 4s ease-in-out infinite' }} />}
+      {!open && <div style={{ fontSize: 9.5, letterSpacing: '0.1em', color: t.textFaint, fontFamily: "'Inter', sans-serif" }}>tap to examine</div>}
+      {open && (
+        <div style={{ fontSize: 13.5, fontStyle: 'italic', lineHeight: 1.65, color: t.textBright, fontFamily: "'Cormorant Garamond', serif", animation: 'fadeUpBlur 0.45s ease forwards' }}>
+          {artifact.interpretation}
+        </div>
+      )}
+      {open && <div style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: '50%', background: `radial-gradient(circle, ${t.glowMid} 0%, transparent 70%)`, pointerEvents: 'none', animation: 'orbPulse 4s ease-in-out infinite' }} />}
     </div>
   )
 }
 
 interface TrackEntry { title: string; artist: string; album?: string; album_art?: string | null; spotify_url?: string; reason?: string }
 
-function DreamTrackFragment({ track, index, total, theme: t }: { track: TrackEntry; index: number; total: number; theme: Theme }) {
+// Fix #5: isWaking replaces isLast for ↑ surface label
+function DreamTrackFragment({ track, index, total, isWaking, theme: t }: {
+  track: TrackEntry
+  index: number
+  total: number
+  isWaking: boolean
+  theme: Theme
+}) {
   const [open, setOpen] = useState(false)
   const isLast = index === total - 1
   return (
@@ -514,7 +737,9 @@ function DreamTrackFragment({ track, index, total, theme: t }: { track: TrackEnt
             {track.artist}{track.album && <span style={{ opacity: 0.55 }}> · {track.album}</span>}
           </div>
         </div>
-        {isLast && <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: t.textFaint, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', flexShrink: 0, transition: 'color 1.8s ease' }}>↑ surface</div>}
+        {isWaking && (
+          <div style={{ fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: t.textFaint, fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap', flexShrink: 0, transition: 'color 1.8s ease' }}>↑ surface</div>
+        )}
         {track.spotify_url && (
           <a
             href={track.spotify_url} target="_blank" rel="noopener noreferrer"

@@ -9,4 +9,8 @@ export function extractError(err: unknown): string {
   return detail || 'Something went wrong. Is the backend running?'
 }
 
+export function authHeaders(token: string | null | undefined): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export default api

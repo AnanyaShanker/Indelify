@@ -6,10 +6,21 @@ export interface Track {
   album?: string
   spotify_url?: string
   album_art?: string | null
+  image?: string | null
+  uri?: string
+  preview_url?: string
   genius_url?: string
   reason?: string
   lyric_snippet?: string | null
   match_type?: 'literal' | 'metaphorical' | 'adjacent'
+}
+
+export interface SavedPlaylist {
+  id: string
+  name: string
+  tab: string
+  tracks: Track[]
+  created_at: string
 }
 
 export interface HistoryEntry {
@@ -19,6 +30,15 @@ export interface HistoryEntry {
   input: string
   trackCount: number
   ts: number
+  meta?: unknown
+}
+
+export interface SearchResult {
+  tab: string
+  label: string
+  input: string
+  tracks: Track[]
+  meta?: unknown
 }
 
 export interface MusicCharacteristics {
@@ -55,6 +75,7 @@ export interface EnvironmentResult {
   mood_label: string
   emotional_valence?: string
   emotional_states?: string[]
+  visual_scene?: string
   atmosphere?: string
   story?: string
   emotional_amplification?: string
@@ -65,8 +86,9 @@ export interface EnvironmentResult {
 export interface DreamResult {
   mood_label: string
   emotional_residue: string
-  symbolic_core?: string[]
+  symbolic_core?: Array<{ symbol: string; interpretation: string }>
   waking_transition_state?: string
+  waking_transition_track?: string
   dream_image?: string
   music_attributes?: string[]
   tracks: Track[]

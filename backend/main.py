@@ -1,5 +1,5 @@
 # Copyright © 2026 Ananya Shanker. All rights reserved.
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -7,6 +7,7 @@ from starlette.requests import Request
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from supabase import create_client as _supabase_create
 import os
 import re
 import json
@@ -17,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 import base64
 import random
+import time
 import io
 from PIL import Image
 import spotipy
@@ -29,6 +31,37 @@ _REQUIRED_ENV = ["GROQ_API_KEY", "SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "
 for _key in _REQUIRED_ENV:
     if not os.getenv(_key):
         raise RuntimeError(f"Missing required environment variable: {_key}")
+
+_supa_url = os.getenv("SUPABASE_URL")
+_supa_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+supabase_admin = _supabase_create(_supa_url, _supa_key) if _supa_url and _supa_key else None
+
+
+class _AuthUser:
+    __slots__ = ("id", "email", "user_metadata")
+    def __init__(self, d: dict):
+        self.id            = d.get("id")
+        self.email         = d.get("email")
+        self.user_metadata = d.get("user_metadata", {})
+
+def get_current_user(authorization: str | None = Header(None)):
+    if not authorization or not authorization.startswith("Bearer ") or not _supa_url or not _supa_key:
+        return None
+    token = authorization[7:]
+    try:
+        resp = requests.get(
+            f"{_supa_url}/auth/v1/user",
+            headers={"Authorization": f"Bearer {token}", "apikey": _supa_key},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            print(f"[AUTH] Supabase returned {resp.status_code}: {resp.text[:200]}")
+            return None
+        return _AuthUser(resp.json())
+    except Exception as e:
+        print(f"[AUTH] get_current_user failed: {type(e).__name__}: {e}")
+        return None
+
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="Indelify API")
@@ -121,7 +154,6 @@ Common Hindi/Urdu emotion words — recognize these and honor their depth:
   aahat       = distant echo, faint sound of someone approaching
   rukhsat     = farewell, letting go
   qismat      = fate, destiny
-  intezaar    = waiting with longing
   shikwa      = complaint born from love
   ulfat       = affection, tenderness
   zindagi     = life (often used poetically)
@@ -421,7 +453,7 @@ Return ONLY valid JSON in exactly this shape:
       "title": "",
       "artist": "",
       "match_type": "literal" | "metaphorical" | "adjacent",
-      "lyric_snippet": "a short relevant snippet or null",
+      "lyric_snippet": "a short relevant lyric snippet only if you are certain it is word-for-word accurate from your training data — otherwise null. Never fabricate.",
       "reason": "why this song captures the theme, even if the exact word isn't used"
     }
   ]
@@ -478,6 +510,8 @@ def _format_track_item(item: dict) -> dict:
         "album":       item["album"]["name"],
         "spotify_url": item["external_urls"]["spotify"],
         "album_art":   item["album"]["images"][0]["url"] if item["album"]["images"] else None,
+        "uri":         item.get("uri"),
+        "preview_url": item.get("preview_url"),
     }
 
 
@@ -486,25 +520,6 @@ def spotify_direct_search(query: str, limit: int = 5, randomize: bool = False) -
     results = spotify.search(q=query, type="track", limit=limit, offset=offset)
     return [_format_track_item(item) for item in results["tracks"]["items"]]
 
-
-def fetch_spotify_tracks(
-    base_query: str,
-    lang_pref: str,
-    limit: int = 5,
-) -> list:
-    query = build_spotify_query(base_query, lang_pref)
-
-    if lang_pref == "all":
-        main_tracks = spotify_direct_search(query, 3)
-        bollywood_q = build_spotify_query(base_query, "hindi-bollywood")
-        hindi_tracks = spotify_direct_search(bollywood_q, 2)
-        return (main_tracks + hindi_tracks)[:limit]
-
-    tracks = spotify_direct_search(query, limit)
-    if len(tracks) < limit and lang_pref == "hindi-bollywood":
-        extra = spotify_direct_search("bollywood hit songs hindi", limit - len(tracks))
-        tracks = tracks + extra
-    return tracks[:limit]
 
 
 def _spotify_find_track(title: str, artist: str, reason: str):
@@ -528,6 +543,7 @@ def fetch_mood_tracks(
     expansion_terms: list,
     lang_pref: str,
     limit: int = 10,
+    pre_seen: set | None = None,
 ) -> list:
     """Fetch tracks by looking up each LLM suggestion on Spotify in parallel.
 
@@ -535,7 +551,7 @@ def fetch_mood_tracks(
     Falls back to query-based search (primary + expansion terms) if suggestions
     come up short.
     """
-    seen = set()
+    seen = set(pre_seen) if pre_seen else set()
     slot_results = [None] * len(suggestions)
 
     def _key(t):
@@ -612,7 +628,7 @@ def generate_dream_image(prompt: str) -> str | None:
             f"https://image.pollinations.ai/prompt/{encoded}"
             "?width=1024&height=576&model=flux&nologo=true&enhance=false"
         )
-        resp = requests.get(url, timeout=10)
+        resp = requests.get(url, timeout=25)
         if resp.status_code == 200 and "image" in resp.headers.get("content-type", ""):
             content_type = resp.headers.get("content-type", "image/jpeg")
             b64 = base64.b64encode(resp.content).decode("utf-8")
@@ -655,7 +671,10 @@ def groq_vision_multi(prompt: str, images: list[tuple[bytes, str]]) -> str:
     response = groq_client.chat.completions.create(
         model=GROQ_VISION_MODEL,
         temperature=1.1,
-        messages=[{"role": "user", "content": content}],
+        messages=[
+            {"role": "system", "content": "You are a JSON-only API. Always respond with valid JSON and nothing else — no markdown, no backticks, no prose."},
+            {"role": "user", "content": content},
+        ],
         timeout=45,
     )
     return response.choices[0].message.content
@@ -799,14 +818,18 @@ LANG_PREFS = {"all", "hindi-bollywood", "english"}
 class TextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=2000)
     language_preference: str = "all"
+    refresh: bool = False
+    exclude: list = Field(default=[])
 
 class DreamRequest(BaseModel):
     dream: str = Field(..., min_length=1, max_length=3000)
     language_preference: str = "all"
+    refresh: bool = False
 
 class LyricsRequest(BaseModel):
     word: str = Field(..., min_length=1, max_length=200)
     language_preference: str = "all"
+    refresh: bool = False
 
 
 # ── routes ─────────────────────────────────────────────────────────────────────
@@ -829,15 +852,29 @@ async def analyze_text(request: Request, req: TextRequest):
             lang = "all"
 
     cache_key = _cache_key("text_v2", req.text, lang)
-    if cached := _cache_get(cache_key):
-        return cached
+    if not req.refresh:
+        if cached := _cache_get(cache_key):
+            return cached
+
+    exclude_set = set()
+    exclude_block = ""
+    if req.refresh and req.exclude:
+        for item in req.exclude[:15]:
+            title  = str(item.get("title",  "") if isinstance(item, dict) else "").strip()
+            artist = str(item.get("artist", "") if isinstance(item, dict) else "").strip()
+            if title and artist:
+                exclude_set.add((title.lower(), artist.lower()))
+        if exclude_set:
+            lines = "\n".join(f'  - "{t}" by {a}' for t, a in exclude_set)
+            exclude_block = f"\n\nDo NOT suggest any of these songs — the user has already heard them:\n{lines}\nChoose completely different tracks."
+
     try:
         prompt = f"""{MOOD_ENGINE_PREAMBLE}
 
 {EMOTION_ACCURACY_RULES}
 
 A user describes their mood: "{req.text}"
-{lang_instruction(lang)}
+{lang_instruction(lang)}{exclude_block}
 
 {_mood_schema()}"""
 
@@ -850,6 +887,7 @@ A user describes their mood: "{req.text}"
             expansion_terms=data.get("search_expansion_terms", []),
             lang_pref=lang,
             limit=10,
+            pre_seen=exclude_set if exclude_set else None,
         )
 
         result = {
@@ -985,8 +1023,9 @@ CRITICAL DIVERSITY RULES for the tracks array:
 async def analyze_dream(request: Request, req: DreamRequest):
     lang = req.language_preference if req.language_preference in LANG_PREFS else "all"
     cache_key = _cache_key("dream_v4", req.dream, lang)
-    if cached := _cache_get(cache_key):
-        return cached
+    if not req.refresh:
+        if cached := _cache_get(cache_key):
+            return cached
     try:
         prompt = f"""{DREAM_ENGINE_PREAMBLE}
 
@@ -998,7 +1037,11 @@ A user describes their dream: "{req.dream}"
 Return ONLY a valid JSON object (no markdown, no extra text) with exactly these fields:
 {{
   "emotional_residue": "the feeling that lingers — not what happened, what it left behind (1-2 sentences)",
-  "symbolic_core": ["2-3 most emotionally charged symbols from the dream, interpreted through emotional weight"],
+  "symbolic_core": [
+    {{"symbol": "the fragment or image", "interpretation": "what emotional weight this symbol carries — 1 sentence"}},
+    {{"symbol": "...", "interpretation": "..."}},
+    {{"symbol": "...", "interpretation": "..."}}
+  ],
   "waking_transition_state": "how the dreamer feels in the first 10 seconds after waking (1 sentence)",
   "image_prompt": "Stable Diffusion XL prompt: symbolic visual, lighting, color palette, digital painting, surreal, dreamlike, highly detailed, atmospheric — under 40 words",
   "mood_label": "evocative 2-4 word emotional label for this dream",
@@ -1010,8 +1053,9 @@ Return ONLY a valid JSON object (no markdown, no extra text) with exactly these 
     {{"title": "Song Name", "artist": "Artist Name", "reason": "..."}},
     {{"title": "Song Name", "artist": "Artist Name", "reason": "..."}},
     {{"title": "Song Name", "artist": "Artist Name", "reason": "..."}},
-    {{"title": "Song Name", "artist": "Artist Name", "reason": "Track 5 must specifically capture the WAKING TRANSITION STATE — the disorientation, nostalgia, or relief of the first seconds after waking"}}
-  ]
+    {{"title": "Song Name", "artist": "Artist Name", "reason": "this track must specifically capture the WAKING TRANSITION STATE — the disorientation, nostalgia, or relief of the first seconds after waking"}}
+  ],
+  "waking_transition_track": "exact title of the track above that captures the waking transition state"
 }}
 
 CRITICAL: Do NOT default to generic ambient/dreamy music. Match the EMOTION, not the genre cliché.
@@ -1034,13 +1078,14 @@ CRITICAL: Track reasons must explain the emotional resonance, not just "this son
             dream_image = image_future.result()
 
         result = {
-            "emotional_residue":       data.get("emotional_residue", ""),
-            "symbolic_core":           data.get("symbolic_core", []),
-            "waking_transition_state": data.get("waking_transition_state", ""),
-            "mood_label":              data.get("mood_label", ""),
-            "music_attributes":        data.get("music_attributes", []),
-            "dream_image":             dream_image,
-            "tracks":                  tracks,
+            "emotional_residue":        data.get("emotional_residue", ""),
+            "symbolic_core":            data.get("symbolic_core", []),
+            "waking_transition_state":  data.get("waking_transition_state", ""),
+            "waking_transition_track":  data.get("waking_transition_track", ""),
+            "mood_label":               data.get("mood_label", ""),
+            "music_attributes":         data.get("music_attributes", []),
+            "dream_image":              dream_image,
+            "tracks":                   tracks,
         }
         # Cache without the base64 image to keep memory usage bounded
         _cache_set(cache_key, {k: v for k, v in result.items() if k != "dream_image"})
@@ -1056,9 +1101,10 @@ CRITICAL: Track reasons must explain the emotional resonance, not just "this son
 @limiter.limit("20/minute")
 async def analyze_lyrics(request: Request, req: LyricsRequest):
     lang = req.language_preference if req.language_preference in LANG_PREFS else "all"
-    cache_key = _cache_key("lyrics", req.word, lang)
-    if cached := _cache_get(cache_key):
-        return cached
+    cache_key = _cache_key("lyrics", req.word.strip(), lang)
+    if not req.refresh:
+        if cached := _cache_get(cache_key):
+            return cached
     try:
         lang_note = lang_instruction(lang)
         user_message = f'Theme to analyze: "{req.word}"\n\n{lang_note}'
@@ -1119,7 +1165,7 @@ async def analyze_lyrics(request: Request, req: LyricsRequest):
                     continue
 
         result = {
-            "theme":                req.word,
+            "theme":                req.word.strip(),
             "literal_meaning":      data.get("literal_meaning", ""),
             "metaphorical_meanings": data.get("metaphorical_meanings", []),
             "emotional_register":   data.get("emotional_register", {}),
@@ -1133,5 +1179,170 @@ async def analyze_lyrics(request: Request, req: LyricsRequest):
     except Exception as e:
         print(f"[ERROR] /analyze/lyrics: {e}")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
+
+
+# ── User data routes ────────────────────────────────────────────────────────────
+
+class SearchSave(BaseModel):
+    tab:    str  = Field(..., max_length=50)
+    label:  str  = Field(..., max_length=200)
+    input:  str  = Field(..., max_length=5000)
+    tracks: list = Field(default=[])
+
+class PlaylistSave(BaseModel):
+    name:   str  = Field(..., min_length=1, max_length=200)
+    tab:    str  = Field(..., max_length=50)
+    tracks: list = Field(default=[])
+    note:   str | None    = Field(default=None, max_length=1000)
+
+
+@app.post("/user/searches")
+async def save_search(body: SearchSave, user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    supabase_admin.table("searches").insert({
+        "user_id": str(user.id),
+        "tab":     body.tab,
+        "label":   body.label,
+        "input":   body.input,
+        "tracks":  body.tracks,
+    }).execute()
+    return {"ok": True}
+
+
+@app.get("/user/searches")
+async def get_searches(user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    result = (
+        supabase_admin.table("searches")
+        .select("*")
+        .eq("user_id", str(user.id))
+        .order("created_at", desc=True)
+        .limit(50)
+        .execute()
+    )
+    return result.data
+
+
+@app.post("/user/playlists")
+async def save_playlist(body: PlaylistSave, user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        result = (
+            supabase_admin.table("saved_playlists")
+            .insert({
+                "user_id": str(user.id),
+                "name":    body.name,
+                "tab":     body.tab,
+                "tracks":  body.tracks,
+                "note":    body.note,
+            })
+            .execute()
+        )
+        return result.data[0] if result.data else {"ok": True}
+    except Exception as e:
+        print(f"[ERROR] save_playlist: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="Could not save playlist")
+
+
+@app.get("/user/playlists")
+async def get_playlists(user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    result = (
+        supabase_admin.table("saved_playlists")
+        .select("*")
+        .eq("user_id", str(user.id))
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return result.data
+
+
+class PlaylistRename(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+
+@app.patch("/user/playlists/{playlist_id}")
+async def rename_playlist(playlist_id: str, body: PlaylistRename, user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    supabase_admin.table("saved_playlists").update({"name": body.name}).eq("id", playlist_id).eq("user_id", str(user.id)).execute()
+    return {"ok": True}
+
+
+@app.delete("/user/playlists/{playlist_id}")
+async def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    supabase_admin.table("saved_playlists").delete().eq("id", playlist_id).eq("user_id", str(user.id)).execute()
+    return {"ok": True}
+
+
+class SpotifyPushBody(BaseModel):
+    spotify_token: str
+
+@app.post("/user/playlists/{playlist_id}/push-to-spotify")
+async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user=Depends(get_current_user)):
+    print(f"[PUSH] start playlist_id={playlist_id} token_len={len(body.spotify_token) if body.spotify_token else 0}", flush=True)
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    res = supabase_admin.table("saved_playlists").select("*").eq("id", playlist_id).eq("user_id", str(user.id)).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    playlist = res.data[0]
+    tok  = body.spotify_token
+    hdrs = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+    me = requests.get("https://api.spotify.com/v1/me", headers=hdrs, timeout=10)
+    print(f"[PUSH] /me status={me.status_code}", flush=True)
+    if me.status_code != 200:
+        raise HTTPException(status_code=400, detail="Sign in with Spotify to push playlists")
+    me_data = me.json()
+    uid = me_data["id"]
+    print(f"[PUSH] spotify uid={uid} product={me_data.get('product')}", flush=True)
+    cp = requests.post(
+        "https://api.spotify.com/v1/me/playlists",
+        headers=hdrs, timeout=10,
+        json={"name": playlist["name"], "description": "Made with Indelify", "public": False},
+    )
+    print(f"[PUSH] create playlist status={cp.status_code} body={cp.text[:300]}", flush=True)
+    if cp.status_code not in (200, 201):
+        sp_err = ""
+        try: sp_err = cp.json().get("error", {}).get("message", "")
+        except Exception: sp_err = cp.text[:100]
+        raise HTTPException(status_code=502, detail=f"Spotify: {sp_err or cp.status_code}")
+    cpdata   = cp.json()
+    sp_pl_id = cpdata["id"]
+    sp_url   = cpdata["external_urls"]["spotify"]
+    uris = []
+    for t in playlist["tracks"]:
+        if t.get("uri") and str(t["uri"]).startswith("spotify:"):
+            uris.append(t["uri"])
+        elif t.get("spotify_url"):
+            track_id = str(t["spotify_url"]).rstrip("/").split("/")[-1].split("?")[0]
+            if track_id:
+                uris.append(f"spotify:track:{track_id}")
+    print(f"[PUSH] adding {len(uris)} tracks", flush=True)
+    tracks_added = 0
+    if uris:
+        time.sleep(1)
+        track_headers = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
+        for batch_start in range(0, len(uris), 100):
+            batch = uris[batch_start:batch_start + 100]
+            r = requests.post(
+                f"https://api.spotify.com/v1/playlists/{sp_pl_id}/tracks",
+                headers=track_headers,
+                timeout=10,
+                json={"uris": batch},
+            )
+            print(f"[PUSH] POST tracks batch={batch_start} status={r.status_code} body={r.text[:200]}", flush=True)
+            if r.status_code in (200, 201):
+                tracks_added += len(batch)
+            else:
+                print(f"[PUSH] batch failed — stopping", flush=True)
+                break
+    print(f"[PUSH] done => {sp_url} tracks_added={tracks_added}", flush=True)
+    return {"spotify_url": sp_url, "track_count": tracks_added}
 
 

@@ -16,7 +16,6 @@ const SCENES = [
     glow: 'rgba(212,136,138,0.18)',
     label: 'Mood Search',
     moment: "A feeling you don't have words for.",
-    desc: 'Type exactly how you feel — a word, a memory, a situation. The algorithm disappears. Only music that understands you remains.',
   },
   {
     id: 'environment',
@@ -25,7 +24,6 @@ const SCENES = [
     glow: 'rgba(110,197,184,0.16)',
     label: 'My Environment',
     moment: 'A rainy balcony. A photo from Paris.',
-    desc: 'Upload a photo of your space, your trip, your view. Indelify reads the emotional frequency of the moment and finds its soundtrack.',
   },
   {
     id: 'dream',
@@ -34,7 +32,6 @@ const SCENES = [
     glow: 'rgba(167,139,250,0.16)',
     label: 'Dream Mode',
     moment: "A dream you can't shake.",
-    desc: 'Describe last night\'s fragments — the feelings, the faces, the water always rising. Wake up with the music that was always playing beneath it.',
   },
   {
     id: 'lyrics',
@@ -43,7 +40,6 @@ const SCENES = [
     glow: 'rgba(232,192,106,0.16)',
     label: 'Lyrical Theme',
     moment: '"Clouds." "Distance." "Fire."',
-    desc: 'One word holds a universe of songs. Find music that feels the theme — even if it never says the word.',
   },
 ]
 
@@ -117,17 +113,22 @@ export default function Landing() {
 
       {/* Nav */}
       <nav className="landing-nav">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-            background: 'var(--btn-gradient)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 15, boxShadow: '0 4px 14px var(--btn-shadow)',
-          }}>♪</div>
-          <span style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 19, fontWeight: 600, letterSpacing: '-0.4px', color: 'var(--text-primary)',
-          }}>Indelify</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <svg width="11" height="19" viewBox="0 0 11 19" fill="none" style={{ flexShrink: 0 }}>
+            <rect x="0"   y="9"  width="2.2" height="10" rx="1.1" fill="rgba(244,132,95,0.70)"/>
+            <rect x="3"   y="3"  width="2.2" height="16" rx="1.1" fill="rgba(244,132,95,0.92)"/>
+            <rect x="6"   y="0"  width="2.2" height="19" rx="1.1" fill="rgba(255,185,150,0.88)"/>
+            <rect x="8.8" y="5"  width="2.2" height="14" rx="1.1" fill="rgba(244,132,95,0.78)"/>
+          </svg>
+          <div>
+            <div style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 19, fontWeight: 600, letterSpacing: '-0.3px', lineHeight: 1,
+              background: 'linear-gradient(135deg, #F4845F 0%, #E8B898 55%, var(--text-primary) 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>Indelify</div>
+            <div style={{ height: 1, width: '75%', marginTop: 3, background: 'linear-gradient(to right, rgba(244,132,95,0.5), transparent)' }} />
+          </div>
         </div>
         <button onClick={() => navigate('/app')} className="landing-nav-btn">Open App →</button>
       </nav>
@@ -282,15 +283,19 @@ export default function Landing() {
       {/* ── Footer ───────────────────────────────────────────────────────── */}
       <footer className="landing-footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: 'var(--text-faint)' }}>Indelify</span>
-          <span style={{ color: 'var(--text-faint)', fontSize: 12, opacity: 0.5 }}>·</span>
-          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>© 2026 Ananya Shanker</span>
+          <span style={{
+            fontFamily: "'Playfair Display', serif", fontSize: 14, fontWeight: 600,
+            background: 'linear-gradient(135deg, #F4845F 0%, #E8B898 55%, var(--text-primary) 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          }}>Indelify</span>
+          <span style={{ color: 'var(--text-faint)', fontSize: 12, opacity: 0.4 }}>·</span>
+          <span style={{ fontSize: 11, color: 'var(--text-ultrafaint)' }}>© 2026 Ananya Shanker</span>
         </div>
-        <div style={{ fontSize: 11, color: 'rgba(212,136,138,0.38)', fontStyle: 'italic', letterSpacing: '0.04em' }}>
-          made with love by ananya &lt;3
+        <div style={{ fontSize: 11, color: 'rgba(212,136,138,0.58)', fontStyle: 'italic', letterSpacing: '0.04em' }}>
+          made with ♡ by ananya
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-ultrafaint)', letterSpacing: '0.05em' }}>
-          Groq · Spotify · Genius
+        <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', letterSpacing: '0.03em' }}>
+          Places feel like songs.
         </div>
       </footer>
     </div>
@@ -299,7 +304,7 @@ export default function Landing() {
 
 interface Scene {
   id: string; icon: string; color: string; glow: string
-  label: string; moment: string; desc: string
+  label: string; moment: string
 }
 
 function SceneCard({ scene: s, index, onClick }: { scene: Scene; index: number; onClick: () => void }) {
@@ -331,7 +336,7 @@ function SceneCard({ scene: s, index, onClick }: { scene: Scene; index: number; 
 
       {/* Label */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 30,
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28,
         position: 'relative',
       }}>
         <span style={{ fontSize: 17, color: s.color, lineHeight: 1 }}>{s.icon}</span>
@@ -342,31 +347,15 @@ function SceneCard({ scene: s, index, onClick }: { scene: Scene; index: number; 
         }}>{s.label}</span>
       </div>
 
-      {/* Moment — the big poetic line */}
+      {/* Moment — the only line that matters */}
       <p style={{
         fontFamily: "'Cormorant Garamond', Georgia, serif",
         fontSize: 'clamp(21px, 2.6vw, 29px)',
         fontStyle: 'italic', fontWeight: 400, lineHeight: 1.28,
         color: 'rgba(245,238,240,0.90)',
-        marginBottom: 18, margin: '0 0 18px',
+        margin: '0 0 32px',
         position: 'relative',
       }}>{s.moment}</p>
-
-      {/* Thin divider */}
-      <div style={{
-        width: 40, height: 1, marginBottom: 18,
-        background: `linear-gradient(to right, ${s.color}40, transparent)`,
-        position: 'relative',
-      }} />
-
-      {/* Description */}
-      <p style={{
-        fontFamily: "'Cormorant Garamond', Georgia, serif",
-        fontSize: 15.5, fontStyle: 'italic', lineHeight: 1.78,
-        color: 'rgba(154,112,128,0.68)',
-        marginBottom: 30, margin: '0 0 30px',
-        position: 'relative',
-      }}>{s.desc}</p>
 
       {/* CTA */}
       <div style={{
