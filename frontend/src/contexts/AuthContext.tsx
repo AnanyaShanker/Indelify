@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
 
@@ -17,6 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]       = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const popupRef = useRef<Window | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,6 +29,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      // The opener always has permission to close its child popup, even after the popup
+      // visited cross-origin pages (Google, Supabase). Calling window.close() from
+      // *inside* the popup is blocked by Chrome in that case — so we close from here.
+      if (session && popupRef.current && !popupRef.current.closed) {
+        try { popupRef.current.close() } catch (_) {}
+        popupRef.current = null
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -38,7 +46,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const left = Math.round(window.screenX + (window.outerWidth  - w) / 2)
     const top  = Math.round(window.screenY + (window.outerHeight - h) / 2)
     const popup = window.open(url, 'indelify-auth', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`)
-    if (!popup) window.location.href = url  // fallback if popup blocked
+    if (!popup) {
+      window.location.href = url  // fallback: popup blocked by browser
+    } else {
+      popupRef.current = popup
+    }
   }
 
   async function signInWithSpotify() {
