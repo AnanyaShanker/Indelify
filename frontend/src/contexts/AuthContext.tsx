@@ -13,11 +13,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
+const POPUP_DONE_KEY = 'indelify-popup-auth-done'
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]       = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const popupRef = useRef<Window | null>(null)
+
+  function closePopup() {
+    if (popupRef.current && !popupRef.current.closed) {
+      try { popupRef.current.close() } catch (_) {}
+    }
+    popupRef.current = null
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -29,19 +38,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
-      // Close from the opener — it always has permission regardless of where
-      // the popup navigated (Google, Supabase, back to our origin).
-      if (session && popupRef.current && !popupRef.current.closed) {
-        try { popupRef.current.close() } catch (_) {}
-        popupRef.current = null
-      }
+      if (session) closePopup()
     })
 
-    return () => subscription.unsubscribe()
+    // Direct localStorage watcher — fires the instant the popup writes its session.
+    // This is more reliable than waiting for Supabase's internal BroadcastChannel.
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === POPUP_DONE_KEY && e.newValue) closePopup()
+    }
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [])
 
-  // Open about:blank SYNCHRONOUSLY (within the user-gesture window) so the
-  // browser doesn't block it. We navigate it to the real OAuth URL afterward.
   function openBlankPopup(): Window | null {
     const w = 500, h = 650
     const left = Math.round(window.screenX + (window.outerWidth  - w) / 2)
@@ -50,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithGoogle() {
-    const popup = openBlankPopup()   // sync — must happen before any await
+    const popup = openBlankPopup()
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -59,19 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     })
     if (data?.url) {
-      if (popup) {
-        popup.location.href = data.url
-        popupRef.current = popup
-      } else {
-        window.location.href = data.url   // last-resort: popup was blocked
-      }
+      if (popup) { popup.location.href = data.url; popupRef.current = popup }
+      else window.location.href = data.url
     } else {
       popup?.close()
     }
   }
 
   async function signInWithSpotify() {
-    const popup = openBlankPopup()   // sync — must happen before any await
+    const popup = openBlankPopup()
     const { data } = await supabase.auth.signInWithOAuth({
       provider: 'spotify',
       options: {
@@ -81,12 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     })
     if (data?.url) {
-      if (popup) {
-        popup.location.href = data.url
-        popupRef.current = popup
-      } else {
-        window.location.href = data.url
-      }
+      if (popup) { popup.location.href = data.url; popupRef.current = popup }
+      else window.location.href = data.url
     } else {
       popup?.close()
     }
