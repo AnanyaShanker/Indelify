@@ -13,7 +13,6 @@ function sendToMainWindow(payload: Record<string, unknown>) {
     ch.postMessage(payload)
     ch.close()
   } catch (_) {}
-  // Also try postMessage in case opener is still available (non-Google flows)
   if (window.opener && typeof window.opener.postMessage === 'function') {
     try { window.opener.postMessage(payload, window.location.origin) } catch (_) {}
   }
@@ -28,26 +27,21 @@ export default function Callback() {
       if (handled.current) return
       handled.current = true
 
-      console.log('[Callback] Auth complete. Session:', !!session)
-
       if (session) {
         sendToMainWindow({ type: 'OAUTH_SUCCESS', session })
       } else {
         sendToMainWindow({ type: 'OAUTH_ERROR', error: error ?? 'Auth failed' })
       }
 
-      // Attempt an immediate close. Due to COOP (Google sets Cross-Origin-Opener-Policy:
-      // same-origin on their auth pages), Chrome may defer this close until the user
-      // interacts with the popup. The UI below shows a close button as the user-gesture
-      // path that definitely works.
-      console.log('[Callback] Attempting window.close()')
-      window.close()
-
-      // Show the "signed in" UI — if window.close() was deferred, the user sees
-      // a clean success screen with a button. Clicking the button is a user gesture,
-      // which satisfies Chrome's requirement and closes the popup immediately.
-      // DO NOT redirect to /app — that would load the full app in the popup.
       setDone(true)
+
+      // Give BroadcastChannel 800ms to reach the main window, then navigate
+      // the popup back to the app. window.close() is unreliable on Firefox
+      // after cross-origin OAuth redirects break the opener chain — navigating
+      // is the only cross-browser exit that always works.
+      setTimeout(() => {
+        window.location.href = window.location.origin
+      }, 800)
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -73,11 +67,10 @@ export default function Callback() {
         <div style={{ fontSize: 32, color: '#F4845F' }}>✦</div>
         <div style={{ fontSize: 16, fontWeight: 600 }}>Signed in!</div>
         <div style={{ fontSize: 13, color: 'rgba(245,238,240,0.5)', lineHeight: 1.6 }}>
-          You're all set. Click below to close this window.
+          Taking you back…
         </div>
-        {/* onClick is a user gesture — Chrome will execute the pending window.close() */}
         <button
-          onClick={() => window.close()}
+          onClick={() => { window.location.href = window.location.origin }}
           style={{
             marginTop: 8, cursor: 'pointer',
             background: '#F4845F', border: 'none', borderRadius: 10,
@@ -85,7 +78,7 @@ export default function Callback() {
             fontSize: 13, fontWeight: 700, fontFamily: "'Inter', sans-serif",
           }}
         >
-          Close this tab
+          Go now
         </button>
       </div>
     )

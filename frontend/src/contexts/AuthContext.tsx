@@ -7,7 +7,6 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   connecting: boolean   // true while an OAuth popup is open
-  signInWithSpotify: () => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -149,40 +148,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signInWithSpotify() {
-    const popup = openBlankPopup()
-    setConnecting(true)
-
-    const { data } = await supabase.auth.signInWithOAuth({
-      provider: 'spotify',
-      options: {
-        scopes: 'user-read-email user-read-private playlist-modify-public playlist-modify-private',
-        redirectTo: window.location.origin + '/auth/callback',
-        skipBrowserRedirect: true,
-      },
-    })
-
-    if (data?.url) {
-      if (popup) {
-        popup.location.href = data.url
-        popupRef.current = popup
-        watchPopup(popup)
-      } else {
-        window.location.href = data.url
-        setConnecting(false)
-      }
-    } else {
-      popup?.close()
-      setConnecting(false)
-    }
-  }
-
   async function signOut() {
     await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, connecting, signInWithSpotify, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, connecting, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   )

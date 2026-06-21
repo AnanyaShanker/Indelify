@@ -964,10 +964,7 @@ img {
     padding: 14px 36px;
   }
 
-  /* ── Topbar: hide lang badge (it lives in sidebar), show sign-in btn ── */
-  .topbar-lang {
-    display: none;
-  }
+  /* ── Topbar: lang badge visible on mobile — tap to cycle options ── */
 
   /* ── Section headings scale down on mobile ── */
   .section-heading {

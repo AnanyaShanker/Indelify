@@ -425,9 +425,17 @@ export default function App() {
             </div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="topbar-lang">
-              <LangBadge langPref={langPref} />
-            </div>
+            <button
+              className="topbar-lang"
+              onClick={() => {
+                const order: LangPref[] = ['all', 'hindi-bollywood', 'english']
+                setLangPref(order[(order.indexOf(langPref) + 1) % order.length])
+              }}
+              title="Tap to change language"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <LangBadge langPref={langPref} short />
+            </button>
             {user ? (
               <button
                 className="mobile-avatar-btn"
@@ -567,13 +575,13 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
-function LangBadge({ langPref }: { langPref: LangPref }) {
-  const map: Record<LangPref, { label: string; color: string }> = {
-    'all':             { label: 'All Languages', color: '#D4888A' },
-    'hindi-bollywood': { label: 'Hindi · Urdu',  color: '#F97316' },
-    'english':         { label: 'English',        color: '#A0C4D8' },
+function LangBadge({ langPref, short = false }: { langPref: LangPref; short?: boolean }) {
+  const map: Record<LangPref, { label: string; shortLabel: string; color: string }> = {
+    'all':             { label: 'All Languages', shortLabel: 'All',   color: '#D4888A' },
+    'hindi-bollywood': { label: 'Hindi · Urdu',  shortLabel: 'Hindi', color: '#F97316' },
+    'english':         { label: 'English',        shortLabel: 'Eng',   color: '#A0C4D8' },
   }
-  const { label, color } = map[langPref]
+  const { label, shortLabel, color } = map[langPref]
   return (
     <span style={{
       fontSize: 11, fontWeight: 600,
@@ -581,6 +589,7 @@ function LangBadge({ langPref }: { langPref: LangPref }) {
       background: `${color}14`,
       borderRadius: 999, padding: '3px 10px',
       letterSpacing: '0.03em',
-    }}>{label}</span>
+      whiteSpace: 'nowrap',
+    }}>{short ? shortLabel : label}</span>
   )
 }
