@@ -256,7 +256,7 @@ export default function Landing() {
         }}
       >
         {SCENES.map((s, i) => (
-          <SceneCard key={s.id} scene={s} index={i} onClick={() => navigate('/app')} />
+          <SceneCard key={s.id} scene={s} index={i} onClick={() => navigate(`/app?tab=${s.id}`)} />
         ))}
       </section>
 
