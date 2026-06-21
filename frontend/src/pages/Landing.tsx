@@ -211,7 +211,7 @@ export default function Landing() {
           <button onClick={() => navigate('/app')} className="landing-hero-btn">
             Find My Soundtrack
           </button>
-          <span style={{ fontSize: 10.5, color: 'rgba(90,48,64,0.45)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 10.5, color: 'rgba(200,160,175,0.55)', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
             no account needed
           </span>
         </div>
