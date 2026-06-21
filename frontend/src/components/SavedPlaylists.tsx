@@ -55,11 +55,17 @@ function RenameInput({ value, onSave, onCancel }: { value: string; onSave: (v: s
   )
 }
 
+const INITIAL_SHOW = 5
+
 export default function SavedPlaylists({ playlists, onDelete, onRename }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [renaming, setRenaming] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
 
   if (!playlists.length) return null
+
+  const visible = showAll ? playlists : playlists.slice(0, INITIAL_SHOW)
+  const hidden = playlists.length - INITIAL_SHOW
 
   async function handleRename(id: string, name: string) {
     setRenaming(null)
@@ -73,7 +79,7 @@ export default function SavedPlaylists({ playlists, onDelete, onRename }: Props)
         <span className="label-micro">Saved</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {playlists.map(p => {
+        {visible.map(p => {
           const meta = TAB_META[p.tab] ?? { icon: '♪', color: '#D4888A' }
           const isExpanded = expanded[p.id]
           const isRenaming = renaming === p.id
@@ -188,6 +194,18 @@ export default function SavedPlaylists({ playlists, onDelete, onRename }: Props)
           )
         })}
       </div>
+      {hidden > 0 && (
+        <button
+          onClick={() => setShowAll(s => !s)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-faint)', fontSize: 11, padding: '6px 6px 2px',
+            width: '100%', textAlign: 'left', letterSpacing: '0.02em',
+          }}
+        >
+          {showAll ? '↑ show less' : `+ ${hidden} more`}
+        </button>
+      )}
     </div>
   )
 }

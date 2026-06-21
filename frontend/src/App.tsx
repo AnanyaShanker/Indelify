@@ -60,6 +60,7 @@ export default function App() {
   const [pendingSave, setPendingSave]       = useState<SearchResult | null>(null)
   const [clearConfirm, setClearConfirm]     = useState(false)
   const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[]>([])
+  const [showAllHistory, setShowAllHistory]   = useState(false)
   const [replayEntry, setReplayEntry]       = useState<HistoryEntry | null>(null)
   const [replayKey, setReplayKey]           = useState(0)
   const [toast, setToast]                   = useState<{ msg: string; leaving: boolean } | null>(null)
@@ -288,7 +289,7 @@ export default function App() {
                 >{clearConfirm ? 'sure?' : 'clear'}</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {history.slice(0, 12).map(item => {
+                {(showAllHistory ? history : history.slice(0, 8)).map(item => {
                   const tab = TABS.find(t => t.id === item.tab)
                   return (
                     <button
@@ -314,6 +315,18 @@ export default function App() {
                   )
                 })}
               </div>
+              {history.length > 8 && (
+                <button
+                  onClick={() => setShowAllHistory(s => !s)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--text-faint)', fontSize: 11, padding: '6px 6px 2px',
+                    width: '100%', textAlign: 'left', letterSpacing: '0.02em',
+                  }}
+                >
+                  {showAllHistory ? '↑ show less' : `+ ${history.length - 8} more`}
+                </button>
+              )}
             </div>
           )}
         </div>
