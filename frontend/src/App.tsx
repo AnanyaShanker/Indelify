@@ -384,7 +384,7 @@ export default function App() {
             style={{
               background: 'var(--tab-hover-bg)', border: '1px solid var(--border)',
               borderRadius: 7, color: 'var(--text-faint)', fontSize: 13,
-              cursor: 'pointer', padding: '4px 8px', lineHeight: 1,
+              cursor: 'pointer', padding: '7px 10px', lineHeight: 1,
               transition: 'all 0.15s', flexShrink: 0,
             }}
           >{theme === 'dark' ? '☀' : '☾'}</button>
