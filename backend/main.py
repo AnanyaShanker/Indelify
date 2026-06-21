@@ -602,8 +602,13 @@ def fetch_mood_tracks(
 
 # ── image helpers ──────────────────────────────────────────────────────────────
 
-MAX_IMAGE_SIDE = 1024
-JPEG_QUALITY   = 82
+MAX_IMAGE_SIDE   = 1024
+JPEG_QUALITY     = 82
+_MAX_IMG_BYTES   = 10 * 1024 * 1024   # 10 MB per file hard cap
+_ALLOWED_IMG_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"}
+
+# Prevent PIL decompression-bomb attacks (tiny file → huge RAM expansion)
+Image.MAX_IMAGE_PIXELS = 50_000_000
 
 
 def _compress_image(image_bytes: bytes, mime_type: str) -> tuple[bytes, str]:
@@ -908,7 +913,10 @@ A user describes their mood: "{req.text}"
             "vibe_tags":             data.get("vibe_tags", []),
             "tracks":                tracks,
         }
-        _cache_set(cache_key, result)
+        # Don't cache when exclusions were applied — the result is specific to
+        # this refresh and would poison the shared cache key for normal requests.
+        if not exclude_set:
+            _cache_set(cache_key, result)
         return result
     except HTTPException:
         raise
@@ -932,8 +940,12 @@ async def analyze_image(
     try:
         images_data = []
         for f in files:
-            image_bytes = await f.read()
-            mime = f.content_type or "image/jpeg"
+            mime = (f.content_type or "").lower().split(";")[0].strip()
+            if mime not in _ALLOWED_IMG_MIME:
+                raise HTTPException(status_code=400, detail=f"Unsupported file type: {mime or 'unknown'}")
+            image_bytes = await f.read(_MAX_IMG_BYTES + 1)
+            if len(image_bytes) > _MAX_IMG_BYTES:
+                raise HTTPException(status_code=413, detail="Image too large. Maximum size is 10 MB.")
             image_bytes, mime = _compress_image(image_bytes, mime)
             images_data.append((image_bytes, mime))
 

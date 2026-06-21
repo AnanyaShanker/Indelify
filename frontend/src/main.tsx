@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import Landing from './pages/Landing'
 import App from './App'
+import Privacy from './pages/Privacy'
 import NotFound from './pages/NotFound'
 import SpotifyWriteCallback from './pages/SpotifyWriteCallback'
 import Callback from './pages/Callback'
@@ -41,6 +42,7 @@ if (CALLBACK_PATHS.includes(window.location.pathname) || isOAuthLanding) {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/app" element={<App />} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

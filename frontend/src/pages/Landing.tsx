@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 
 const EXAMPLES = [
@@ -297,6 +297,9 @@ export default function Landing() {
         <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', letterSpacing: '0.03em' }}>
           Places feel like songs.
         </div>
+        <Link to="/privacy" style={{ fontSize: 11, color: 'var(--text-ultrafaint)', textDecoration: 'none', letterSpacing: '0.04em' }}>
+          Privacy Policy
+        </Link>
       </footer>
     </div>
   )
