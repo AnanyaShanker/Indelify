@@ -935,8 +935,8 @@ async def analyze_image(
     lang = language_preference if language_preference in LANG_PREFS else "all"
     if not files:
         raise HTTPException(status_code=400, detail="No images provided.")
-    if len(files) > 6:
-        raise HTTPException(status_code=400, detail="Maximum 6 images allowed.")
+    if len(files) > 5:
+        raise HTTPException(status_code=400, detail="Maximum 5 images allowed.")
     try:
         images_data = []
         for f in files:

@@ -13,7 +13,7 @@ interface Props {
   initialInput?: string
 }
 
-const MAX_IMAGES = 6
+const MAX_IMAGES = 5
 
 export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, initialResult, initialInput }: Props) {
   const [files, setFiles]       = useState<File[]>([])

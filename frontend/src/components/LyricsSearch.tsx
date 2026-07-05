@@ -168,8 +168,8 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
             style={{
               background: canSubmit
                 ? 'linear-gradient(135deg, rgba(200,155,45,0.92) 0%, rgba(155,115,20,0.96) 100%)'
-                : 'rgba(155,120,30,0.22)',
-              color: 'rgba(255,240,190,0.95)',
+                : isLight ? 'rgba(160,120,20,0.14)' : 'rgba(155,120,30,0.22)',
+              color: isLight ? (canSubmit ? '#3A2800' : 'rgba(80,55,5,0.40)') : 'rgba(255,240,190,0.95)',
               border: '1px solid rgba(232,192,106,0.28)',
               borderRadius: 14, padding: '13px 22px',
               fontSize: 13, fontWeight: 600,
@@ -189,20 +189,20 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
 
       {/* Fix #3: clicking a suggestion clears any stale result */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}>
-        <span style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(232,192,106,0.38)', alignSelf: 'center', fontFamily: "'Inter', sans-serif" }}>Try:</span>
+        <span style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: isLight ? 'rgba(120,85,10,0.55)' : 'rgba(232,192,106,0.38)', alignSelf: 'center', fontFamily: "'Inter', sans-serif" }}>Try:</span>
         {suggestions.map(s => (
           <button key={s}
             onClick={() => { setResult(null); setError(null); triggerSearch(s) }}
             style={{
-              background: 'rgba(232,192,106,0.07)',
-              border: '1px solid rgba(232,192,106,0.22)',
-              color: 'rgba(232,192,106,0.72)',
+              background: isLight ? 'rgba(150,110,15,0.09)' : 'rgba(232,192,106,0.07)',
+              border: `1px solid ${isLight ? 'rgba(150,110,15,0.28)' : 'rgba(232,192,106,0.22)'}`,
+              color: isLight ? 'rgba(90,60,5,0.80)' : 'rgba(232,192,106,0.72)',
               borderRadius: 999, padding: '4px 14px', fontSize: 13,
               cursor: 'pointer', transition: 'all 0.18s',
               fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = 'rgba(232,192,106,0.42)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(232,192,106,0.07)'; e.currentTarget.style.color = 'rgba(232,192,106,0.72)'; e.currentTarget.style.borderColor = 'rgba(232,192,106,0.22)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.17)' : 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = isLight ? 'rgba(70,45,0,0.95)' : 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.48)' : 'rgba(232,192,106,0.42)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.09)' : 'rgba(232,192,106,0.07)'; e.currentTarget.style.color = isLight ? 'rgba(90,60,5,0.80)' : 'rgba(232,192,106,0.72)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.28)' : 'rgba(232,192,106,0.22)' }}
           >{s}</button>
         ))}
       </div>
@@ -322,15 +322,15 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
                     key={i}
                     onClick={() => triggerSearch(term)}
                     style={{
-                      background: 'rgba(232,192,106,0.07)',
-                      border: '1px solid rgba(232,192,106,0.22)',
-                      color: 'rgba(232,192,106,0.72)',
+                      background: isLight ? 'rgba(150,110,15,0.09)' : 'rgba(232,192,106,0.07)',
+                      border: `1px solid ${isLight ? 'rgba(150,110,15,0.28)' : 'rgba(232,192,106,0.22)'}`,
+                      color: isLight ? 'rgba(90,60,5,0.80)' : 'rgba(232,192,106,0.72)',
                       borderRadius: 999, padding: '5px 14px', fontSize: 12.5,
                       cursor: 'pointer', transition: 'all 0.18s',
                       fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = 'rgba(232,192,106,0.42)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(232,192,106,0.07)'; e.currentTarget.style.color = 'rgba(232,192,106,0.72)'; e.currentTarget.style.borderColor = 'rgba(232,192,106,0.22)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.17)' : 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = isLight ? 'rgba(70,45,0,0.95)' : 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.48)' : 'rgba(232,192,106,0.42)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.09)' : 'rgba(232,192,106,0.07)'; e.currentTarget.style.color = isLight ? 'rgba(90,60,5,0.80)' : 'rgba(232,192,106,0.72)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.28)' : 'rgba(232,192,106,0.22)' }}
                   >{term}</button>
                 ))}
               </div>
