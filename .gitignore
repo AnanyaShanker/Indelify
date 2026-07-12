@@ -15,6 +15,9 @@ backend/.env
 .env.local
 .env.*.local
 
+# Spotipy token cache - contains live OAuth tokens
+backend/.cache
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

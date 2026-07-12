@@ -12,6 +12,7 @@ import os
 import re
 import json
 import hashlib
+import logging
 import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,6 +27,12 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import lyricsgenius
 
 load_dotenv()
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("indelify")
 
 _REQUIRED_ENV = ["GROQ_API_KEY", "SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "GENIUS_API_KEY"]
 for _key in _REQUIRED_ENV:
@@ -55,11 +62,11 @@ def get_current_user(authorization: str | None = Header(None)):
             timeout=10,
         )
         if resp.status_code != 200:
-            print(f"[AUTH] Supabase returned {resp.status_code}: {resp.text[:200]}")
+            logger.warning("Supabase auth lookup returned %s: %s", resp.status_code, resp.text[:200])
             return None
         return _AuthUser(resp.json())
-    except Exception as e:
-        print(f"[AUTH] get_current_user failed: {type(e).__name__}: {e}")
+    except Exception:
+        logger.exception("get_current_user failed")
         return None
 
 
@@ -604,7 +611,7 @@ def fetch_mood_tracks(
 
 MAX_IMAGE_SIDE   = 1024
 JPEG_QUALITY     = 82
-_MAX_IMG_BYTES   = 10 * 1024 * 1024   # 10 MB per file hard cap
+_MAX_IMG_BYTES   = 50 * 1024 * 1024   # 50 MB per file hard cap — matches frontend's MAX_FILE_SIZE
 _ALLOWED_IMG_MIME = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"}
 
 # Prevent PIL decompression-bomb attacks (tiny file → huge RAM expansion)
@@ -920,8 +927,8 @@ A user describes their mood: "{req.text}"
         return result
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[ERROR] /analyze/text: {e}")
+    except Exception:
+        logger.exception("/analyze/text failed")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
 
 
@@ -945,7 +952,7 @@ async def analyze_image(
                 raise HTTPException(status_code=400, detail=f"Unsupported file type: {mime or 'unknown'}")
             image_bytes = await f.read(_MAX_IMG_BYTES + 1)
             if len(image_bytes) > _MAX_IMG_BYTES:
-                raise HTTPException(status_code=413, detail="Image too large. Maximum size is 10 MB.")
+                raise HTTPException(status_code=413, detail="Image too large. Maximum size is 50 MB.")
             image_bytes, mime = _compress_image(image_bytes, mime)
             images_data.append((image_bytes, mime))
 
@@ -1027,8 +1034,8 @@ CRITICAL DIVERSITY RULES for the tracks array:
         }
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[ERROR] /analyze/image: {e}")
+    except Exception:
+        logger.exception("/analyze/image failed")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
 
 
@@ -1106,8 +1113,8 @@ CRITICAL: Track reasons must explain the emotional resonance, not just "this son
         return result
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[ERROR] /analyze/dream: {e}")
+    except Exception:
+        logger.exception("/analyze/dream failed")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
 
 
@@ -1190,8 +1197,8 @@ async def analyze_lyrics(request: Request, req: LyricsRequest):
         return result
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[ERROR] /analyze/lyrics: {e}")
+    except Exception:
+        logger.exception("/analyze/lyrics failed")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
 
 
@@ -1256,8 +1263,8 @@ async def save_playlist(body: PlaylistSave, user=Depends(get_current_user)):
             .execute()
         )
         return result.data[0] if result.data else {"ok": True}
-    except Exception as e:
-        print(f"[ERROR] save_playlist: {type(e).__name__}: {e}")
+    except Exception:
+        logger.exception("save_playlist failed")
         raise HTTPException(status_code=500, detail="Could not save playlist")
 
 
@@ -1299,7 +1306,7 @@ class SpotifyPushBody(BaseModel):
 
 @app.post("/user/playlists/{playlist_id}/push-to-spotify")
 async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user=Depends(get_current_user)):
-    print(f"[PUSH] start playlist_id={playlist_id} token_len={len(body.spotify_token) if body.spotify_token else 0}", flush=True)
+    logger.info("push-to-spotify start playlist_id=%s token_len=%d", playlist_id, len(body.spotify_token) if body.spotify_token else 0)
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     res = supabase_admin.table("saved_playlists").select("*").eq("id", playlist_id).eq("user_id", str(user.id)).execute()
@@ -1309,18 +1316,18 @@ async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user
     tok  = body.spotify_token
     hdrs = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
     me = requests.get("https://api.spotify.com/v1/me", headers=hdrs, timeout=10)
-    print(f"[PUSH] /me status={me.status_code}", flush=True)
+    logger.info("push-to-spotify /me status=%s", me.status_code)
     if me.status_code != 200:
         raise HTTPException(status_code=400, detail="Sign in with Spotify to push playlists")
     me_data = me.json()
     uid = me_data["id"]
-    print(f"[PUSH] spotify uid={uid} product={me_data.get('product')}", flush=True)
+    logger.info("push-to-spotify spotify uid=%s product=%s", uid, me_data.get("product"))
     cp = requests.post(
         "https://api.spotify.com/v1/me/playlists",
         headers=hdrs, timeout=10,
         json={"name": playlist["name"], "description": "Made with Indelify", "public": False},
     )
-    print(f"[PUSH] create playlist status={cp.status_code} body={cp.text[:300]}", flush=True)
+    logger.info("push-to-spotify create playlist status=%s body=%s", cp.status_code, cp.text[:300])
     if cp.status_code not in (200, 201):
         sp_err = ""
         try: sp_err = cp.json().get("error", {}).get("message", "")
@@ -1337,7 +1344,7 @@ async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user
             track_id = str(t["spotify_url"]).rstrip("/").split("/")[-1].split("?")[0]
             if track_id:
                 uris.append(f"spotify:track:{track_id}")
-    print(f"[PUSH] adding {len(uris)} tracks", flush=True)
+    logger.info("push-to-spotify adding %d tracks", len(uris))
     tracks_added = 0
     if uris:
         time.sleep(1)
@@ -1350,13 +1357,13 @@ async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user
                 timeout=10,
                 json={"uris": batch},
             )
-            print(f"[PUSH] POST tracks batch={batch_start} status={r.status_code} body={r.text[:200]}", flush=True)
+            logger.info("push-to-spotify tracks batch=%d status=%s body=%s", batch_start, r.status_code, r.text[:200])
             if r.status_code in (200, 201):
                 tracks_added += len(batch)
             else:
-                print(f"[PUSH] batch failed — stopping", flush=True)
+                logger.warning("push-to-spotify batch failed — stopping")
                 break
-    print(f"[PUSH] done => {sp_url} tracks_added={tracks_added}", flush=True)
+    logger.info("push-to-spotify done => %s tracks_added=%d", sp_url, tracks_added)
     return {"spotify_url": sp_url, "track_count": tracks_added}
 
 

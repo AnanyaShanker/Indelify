@@ -18,4 +18,9 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'unsafe-none',
     },
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+    globals: true,
+  },
 })
