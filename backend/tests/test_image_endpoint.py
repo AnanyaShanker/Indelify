@@ -72,6 +72,38 @@ def test_analyze_image_happy_path(client, monkeypatch):
     assert body["tracks"][0]["title"] == "Test Song"
 
 
+def test_analyze_image_refresh_excludes_previous_tracks(client, monkeypatch):
+    img = _tiny_jpeg_bytes()
+    captured_prompt = {}
+
+    def fake_vision(prompt, images):
+        captured_prompt["value"] = prompt
+        return json.dumps({
+            "mood_label": "Quiet Calm", "tracks": [],
+            "spotify_query": "calm ambient", "search_expansion_terms": [],
+        })
+
+    captured_kwargs = {}
+
+    def fake_fetch(**kwargs):
+        captured_kwargs.update(kwargs)
+        return []
+
+    monkeypatch.setattr(main, "groq_vision_multi", fake_vision)
+    monkeypatch.setattr(main, "fetch_mood_tracks", fake_fetch)
+
+    files = [("files", ("p1.jpg", img, "image/jpeg"))]
+    exclude = json.dumps([{"title": "Test Song", "artist": "Test Artist"}])
+    r = client.post(
+        "/analyze/image", files=files,
+        data={"language_preference": "all", "refresh": "true", "exclude": exclude},
+    )
+    assert r.status_code == 200
+    assert "test song" in captured_prompt["value"].lower()
+    assert "do not suggest" in captured_prompt["value"].lower()
+    assert captured_kwargs["pre_seen"] == {("test song", "test artist")}
+
+
 def test_analyze_image_surfaces_500_when_llm_call_fails(client, monkeypatch):
     def fake_vision(prompt, images):
         raise RuntimeError("groq is down")

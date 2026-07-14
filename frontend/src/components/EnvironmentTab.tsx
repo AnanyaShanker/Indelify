@@ -81,7 +81,7 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
     addFiles(e.dataTransfer.files)
   }, [])
 
-  async function doUpload(currentFiles: File[]) {
+  async function doUpload(currentFiles: File[], refresh = false, excludeTracks: Array<{ title: string; artist: string }> = []) {
     if (!currentFiles.length || pendingRef.current) return
     pendingRef.current = true
     setLoading(true); setResult(null); setError(null)
@@ -89,6 +89,10 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
       const form = new FormData()
       currentFiles.forEach(f => form.append('files', f))
       form.append('language_preference', langPref)
+      if (refresh) {
+        form.append('refresh', 'true')
+        form.append('exclude', JSON.stringify(excludeTracks))
+      }
       const { data } = await api.post<EnvironmentResult>('/analyze/image', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
@@ -351,7 +355,7 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {files.length > 0 && (
                   <button
-                    onClick={() => doUpload(files)}
+                    onClick={() => doUpload(files, true, result.tracks.map(t => ({ title: t.title, artist: t.artist })))}
                     title="Re-analyze the same photos"
                     style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-faint)', borderRadius: 7, padding: '5px 10px', fontSize: 13, cursor: 'pointer', lineHeight: 1 }}
                   >↻</button>

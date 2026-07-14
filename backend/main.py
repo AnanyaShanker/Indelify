@@ -938,12 +938,31 @@ async def analyze_image(
     request: Request,
     files: list[UploadFile] = File(...),
     language_preference: str = Form("all"),
+    refresh: bool = Form(False),
+    exclude: str = Form("[]"),
 ):
     lang = language_preference if language_preference in LANG_PREFS else "all"
     if not files:
         raise HTTPException(status_code=400, detail="No images provided.")
     if len(files) > 5:
         raise HTTPException(status_code=400, detail="Maximum 5 images allowed.")
+
+    exclude_set = set()
+    exclude_block = ""
+    if refresh:
+        try:
+            exclude_items = json.loads(exclude)[:15]
+        except (json.JSONDecodeError, TypeError):
+            exclude_items = []
+        for item in exclude_items:
+            title  = str(item.get("title",  "") if isinstance(item, dict) else "").strip()
+            artist = str(item.get("artist", "") if isinstance(item, dict) else "").strip()
+            if title and artist:
+                exclude_set.add((title.lower(), artist.lower()))
+        if exclude_set:
+            lines = "\n".join(f'  - "{t}" by {a}' for t, a in exclude_set)
+            exclude_block = f"\n\nDo NOT suggest any of these songs — the user has already heard them:\n{lines}\nChoose completely different tracks."
+
     try:
         images_data = []
         for f in files:
@@ -981,7 +1000,7 @@ async def analyze_image(
 
 {EMOTION_ACCURACY_RULES}
 
-{lang_instruction(lang)}
+{lang_instruction(lang)}{exclude_block}
 
 {analysis_instruction}
 {{
@@ -1018,6 +1037,7 @@ CRITICAL DIVERSITY RULES for the tracks array:
             expansion_terms=data.get("search_expansion_terms", []),
             lang_pref=lang,
             limit=10,
+            pre_seen=exclude_set if exclude_set else None,
         )
 
         return {
