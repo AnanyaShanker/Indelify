@@ -95,7 +95,7 @@ groq_client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
 )
 GROQ_TEXT_MODEL = "llama-3.3-70b-versatile"
-GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+GROQ_VISION_MODEL = "qwen/qwen3.6-27b"
 
 
 spotify = spotipy.Spotify(
