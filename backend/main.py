@@ -685,6 +685,7 @@ def groq_vision_multi(prompt: str, images: list[tuple[bytes, str]]) -> str:
     response = groq_client.chat.completions.create(
         model=GROQ_VISION_MODEL,
         temperature=1.1,
+        reasoning_effort="none",
         messages=[
             {"role": "system", "content": "You are a JSON-only API. Always respond with valid JSON and nothing else — no markdown, no backticks, no prose."},
             {"role": "user", "content": content},
