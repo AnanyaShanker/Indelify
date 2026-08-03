@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import './index.css'
 import Landing from './pages/Landing'
 import App from './App'
@@ -45,6 +46,7 @@ if (CALLBACK_PATHS.includes(window.location.pathname) || isOAuthLanding) {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <Analytics />
           </BrowserRouter>
         </AuthProvider>
       </ErrorBoundary>
