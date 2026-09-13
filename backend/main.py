@@ -21,7 +21,9 @@ import base64
 import random
 import time
 import io
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
+import pillow_heif
+pillow_heif.register_heif_opener()
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import lyricsgenius
@@ -94,7 +96,7 @@ groq_client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.getenv("GROQ_API_KEY"),
 )
-GROQ_TEXT_MODEL = "llama-3.3-70b-versatile"
+GROQ_TEXT_MODEL = "openai/gpt-oss-120b"
 GROQ_VISION_MODEL = "qwen/qwen3.6-27b"
 
 
@@ -620,7 +622,11 @@ Image.MAX_IMAGE_PIXELS = 50_000_000
 
 def _compress_image(image_bytes: bytes, mime_type: str) -> tuple[bytes, str]:
     """Resize and compress an image so it fits within Groq's request size limit."""
-    img = Image.open(io.BytesIO(image_bytes))
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        img.load()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="Couldn't read that image — it may be corrupted or in an unsupported format.")
     if img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
     w, h = img.size
