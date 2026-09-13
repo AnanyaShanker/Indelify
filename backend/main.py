@@ -96,7 +96,7 @@ groq_client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.getenv("GROQ_API_KEY"),
 )
-GROQ_TEXT_MODEL = "llama-3.3-70b-versatile"
+GROQ_TEXT_MODEL = "openai/gpt-oss-120b"
 GROQ_VISION_MODEL = "qwen/qwen3.6-27b"
 
 
