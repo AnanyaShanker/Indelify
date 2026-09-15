@@ -97,7 +97,7 @@ groq_client = OpenAI(
     api_key=os.getenv("GROQ_API_KEY"),
 )
 GROQ_TEXT_MODEL = "openai/gpt-oss-120b"
-GROQ_VISION_MODEL = "qwen/qwen3.6-27b"
+GROQ_VISION_MODEL = "qwen/qwen3.8-27b"
 
 
 spotify = spotipy.Spotify(
@@ -692,6 +692,7 @@ def groq_vision_multi(prompt: str, images: list[tuple[bytes, str]]) -> str:
         model=GROQ_VISION_MODEL,
         temperature=1.1,
         reasoning_effort="none",
+        max_completion_tokens=900,
         messages=[
             {"role": "system", "content": "You are a JSON-only API. Always respond with valid JSON and nothing else — no markdown, no backticks, no prose."},
             {"role": "user", "content": content},
@@ -1012,7 +1013,7 @@ async def analyze_image(
 {analysis_instruction}
 {{
   "visual_scene": "{visual_scene_hint}",
-  "atmosphere": "poetic 2-3 sentence description of the sensory and tonal quality of this moment/collection",
+  "atmosphere": "poetic 1-2 sentence description of the sensory and tonal quality of this moment/collection",
   "emotional_states": ["3-5 emotions a human would feel living inside these photos"],
   "story": "{story_hint}",
   "emotional_amplification": "{amplification_hint}",
@@ -1023,8 +1024,8 @@ async def analyze_image(
   "spotify_query": "precise Spotify search string tuned to the emotional identity of this moment and the language preference above",
   "search_expansion_terms": ["alt query 1", "alt query 2", "alt query 3"],
   "tracks": [
-    {{"title": "Song Name", "artist": "Artist Name", "reason": "why this song would emotionally amplify this exact moment — specific lyrical or sonic quality"}},
-    ... exactly 10 tracks, ordered from strongest to weakest emotional match
+    {{"title": "Song Name", "artist": "Artist Name", "reason": "why this song emotionally amplifies this exact moment, in one short phrase"}},
+    ... exactly 6 tracks, ordered from strongest to weakest emotional match
   ]
 }}
 
@@ -1032,8 +1033,8 @@ CRITICAL DIVERSITY RULES for the tracks array:
 - Do NOT default to the same 20–30 famous songs you know well (e.g. avoid always picking "Blinding Lights", "Someone Like You", "Bohemian Rhapsody", etc.).
 - The photos have UNIQUE details (specific light quality, specific objects, specific story) — pick songs that match THOSE specific details, not a generic "mood category".
 - Vary eras: include at least one track from before 1990, one from 1990–2010, and one from 2015–present.
-- Vary popularity: mix 2–3 well-known tracks with 4–5 deeper cuts or lesser-known artists.
-- The 10 tracks must feel like a curated playlist, not a "greatest hits of this emotion" list."""
+- Vary popularity: mix 1–2 well-known tracks with 4–5 deeper cuts or lesser-known artists.
+- The 6 tracks must feel like a curated playlist, not a "greatest hits of this emotion" list."""
 
         raw = groq_vision_multi(prompt, images_data)
         data = parse_llm_json(raw)
