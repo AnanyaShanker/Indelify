@@ -79,7 +79,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _ALLOWED_ORIGINS = [
     o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173").split(",")
+    for o in os.getenv(
+        "ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173,https://localhost"
+    ).split(",")
     if o.strip()
 ]
 app.add_middleware(

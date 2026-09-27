@@ -1,6 +1,39 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import type { User, Session } from '@supabase/supabase-js'
+import { Capacitor } from '@capacitor/core'
+import { Browser } from '@capacitor/browser'
+import { App as CapacitorApp, type URLOpenListenerEvent } from '@capacitor/app'
+
+// Google refuses to sign in inside an embedded WebView ("disallowed_useragent"),
+// which is how Capacitor renders the app. So on native we skip the popup
+// entirely: open the OS browser (Custom Tabs / SFSafariViewController) and have
+// Supabase redirect back into the app via a custom URL scheme deep link instead
+// of an http(s) callback page.
+const NATIVE_REDIRECT_URL = 'com.indelify.app://auth/callback'
+
+// Parse whichever shape Supabase hands back — PKCE puts `code` in the query,
+// implicit flow puts tokens in the hash — same defensive handling as
+// main.tsx's isOAuthLanding check.
+async function applySessionFromUrl(url: string): Promise<Session | null> {
+  const parsed = new URL(url)
+  const code = parsed.searchParams.get('code')
+  if (code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) throw error
+    return data.session
+  }
+  const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash
+  const hashParams = new URLSearchParams(hash)
+  const access_token = hashParams.get('access_token')
+  const refresh_token = hashParams.get('refresh_token')
+  if (access_token && refresh_token) {
+    const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
+    if (error) throw error
+    return data.session
+  }
+  return null
+}
 
 interface AuthContextType {
   user: User | null
@@ -102,11 +135,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (e.data?.type === 'OAUTH_ERROR')   closePopupAndReset()
     }
 
+    // Native: catch the deep link Supabase redirects to after the OS browser
+    // finishes the Google sign-in (com.indelify.app://auth/callback#...).
+    let removeUrlListener: (() => void) | undefined
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('appUrlOpen', async (event: URLOpenListenerEvent) => {
+        if (!event.url.startsWith(NATIVE_REDIRECT_URL)) return
+        try {
+          const session = await applySessionFromUrl(event.url)
+          closePopupAndReset(session)
+        } catch (_) {
+          closePopupAndReset(null)
+        } finally {
+          Browser.close().catch(() => {})
+        }
+      }).then((handle) => { removeUrlListener = () => handle.remove() })
+    }
+
     return () => {
       subscription.unsubscribe()
       window.removeEventListener('message', handleMessage)
       channel.close()
       clearWatch()
+      removeUrlListener?.()
     }
   }, [])
 
@@ -121,6 +172,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithGoogle() {
+    if (Capacitor.isNativePlatform()) {
+      setConnecting(true)
+      const { data } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: NATIVE_REDIRECT_URL, skipBrowserRedirect: true },
+      })
+      if (data?.url) {
+        await Browser.open({ url: data.url })
+      } else {
+        setConnecting(false)
+      }
+      return
+    }
+
     const popup = openBlankPopup()
     setConnecting(true)
 

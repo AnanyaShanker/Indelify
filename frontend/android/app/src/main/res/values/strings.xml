@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Indelify</string>
+    <string name="title_activity_main">Indelify</string>
+    <string name="package_name">com.indelify.app</string>
+    <string name="custom_url_scheme">com.indelify.app</string>
+</resources>
