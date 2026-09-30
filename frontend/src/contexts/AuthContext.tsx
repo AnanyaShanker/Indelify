@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
+import api, { authHeaders } from '../api'
 import type { User, Session } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
@@ -42,6 +43,7 @@ interface AuthContextType {
   connecting: boolean   // true while an OAuth popup is open
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
+  deleteAccount: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -217,8 +219,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  // Permanently deletes the account server-side, then clears the local session.
+  // Throws if the backend call fails so callers can show an error.
+  async function deleteAccount() {
+    if (!session) return
+    await api.delete('/user/account', { headers: authHeaders(session.access_token) })
+    await supabase.auth.signOut().catch(() => {})
+    setSession(null)
+    setUser(null)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, connecting, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, connecting, signInWithGoogle, signOut, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   )

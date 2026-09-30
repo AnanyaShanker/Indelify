@@ -1331,6 +1331,23 @@ async def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+@app.delete("/user/account")
+async def delete_account(user=Depends(get_current_user)):
+    # Required by Google Play's account deletion policy: removes all of the
+    # user's rows, then the Supabase auth user itself.
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    uid = str(user.id)
+    try:
+        supabase_admin.table("searches").delete().eq("user_id", uid).execute()
+        supabase_admin.table("saved_playlists").delete().eq("user_id", uid).execute()
+        supabase_admin.auth.admin.delete_user(uid)
+    except Exception:
+        logger.exception("delete_account failed")
+        raise HTTPException(status_code=500, detail="Could not delete account. Please try again.")
+    return {"ok": True}
+
+
 class SpotifyPushBody(BaseModel):
     spotify_token: str
 

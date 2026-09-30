@@ -6,6 +6,7 @@ import DreamMode from './components/DreamMode'
 import LyricsSearch from './components/LyricsSearch'
 import LanguageToggle from './components/LanguageToggle'
 import AuthModal from './components/AuthModal'
+import DeleteAccountModal from './components/DeleteAccountModal'
 import SavePlaylistModal from './components/SavePlaylistModal'
 import SavedPlaylists from './components/SavedPlaylists'
 import { useAuth } from './contexts/AuthContext'
@@ -57,6 +58,7 @@ export default function App() {
   const [dreamFullscreen, setDreamFullscreen] = useState(false)
   const [sidebarOpen, setSidebarOpen]     = useState(false)
   const [showAuthModal, setShowAuthModal]   = useState(false)
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false)
   const [pendingSave, setPendingSave]       = useState<SearchResult | null>(null)
   const [clearConfirm, setClearConfirm]     = useState(false)
   const [savedPlaylists, setSavedPlaylists] = useState<SavedPlaylist[]>([])
@@ -352,10 +354,16 @@ export default function App() {
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
                   </div>
-                  <button
-                    onClick={signOut}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 10, cursor: 'pointer', padding: 0, letterSpacing: '0.03em' }}
-                  >sign out</button>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={signOut}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 10, cursor: 'pointer', padding: 0, letterSpacing: '0.03em' }}
+                    >sign out</button>
+                    <button
+                      onClick={() => setShowDeleteAccount(true)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 10, cursor: 'pointer', padding: 0, letterSpacing: '0.03em', opacity: 0.7 }}
+                    >delete account</button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -522,6 +530,16 @@ export default function App() {
       </main>
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+      {showDeleteAccount && user && (
+        <DeleteAccountModal
+          onClose={() => setShowDeleteAccount(false)}
+          onDeleted={() => {
+            setShowDeleteAccount(false)
+            setHistory([])
+            showToast('Your account has been deleted')
+          }}
+        />
+      )}
       {pendingSave && user && (
         <SavePlaylistModal
           defaultName={pendingSave.label}

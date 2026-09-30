@@ -35,7 +35,7 @@ export default function Privacy() {
             margin: '0 0 16px', letterSpacing: '-0.02em',
           }}>Privacy Policy</h1>
           <p style={{ fontSize: 13, color: 'var(--text-faint)', margin: 0 }}>
-            Last updated: June 21, 2026
+            Last updated: September 30, 2026
           </p>
         </div>
 
@@ -93,7 +93,10 @@ export default function Privacy() {
             <p>You can:</p>
             <ul>
               <li>Delete your saved playlists at any time from within the app</li>
-              <li>Request deletion of your account and all associated data by emailing{' '}
+              <li>Delete your account and all associated data at any time, either in the app
+                (menu → delete account) or at{' '}
+                <a href="/delete-account" style={{ color: '#F4845F' }}>indelify.vercel.app/delete-account</a>.
+                You can also email{' '}
                 <a href="mailto:ananyashanker24@gmail.com" style={{ color: '#F4845F' }}>
                   ananyashanker24@gmail.com
                 </a>
