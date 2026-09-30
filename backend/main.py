@@ -1276,6 +1276,14 @@ async def get_searches(user=Depends(get_current_user)):
     return result.data
 
 
+@app.delete("/user/searches")
+async def clear_searches(user=Depends(get_current_user)):
+    if not user or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    supabase_admin.table("searches").delete().eq("user_id", str(user.id)).execute()
+    return {"ok": True}
+
+
 @app.post("/user/playlists")
 async def save_playlist(body: PlaylistSave, user=Depends(get_current_user)):
     if not user or not supabase_admin:

@@ -106,11 +106,12 @@ export default function DeleteAccount() {
                 It's removed immediately.
               </li>
               <li>
-                <strong>Search history:</strong> email{' '}
+                <strong>Search history:</strong> open the menu and tap <strong>clear</strong> next to
+                Recent, then tap again to confirm. This deletes your saved history immediately. Or email{' '}
                 <a href="mailto:ananyashanker24@gmail.com?subject=Delete%20my%20Indelify%20search%20history" style={linkStyle}>
                   ananyashanker24@gmail.com
                 </a>{' '}
-                from the address linked to your account and we'll delete it within 7 days. Your account and playlists are kept.
+                and we'll delete it within 7 days.
               </li>
             </ul>
           </div>

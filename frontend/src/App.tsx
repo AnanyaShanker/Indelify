@@ -133,6 +133,14 @@ export default function App() {
     }, 2800)
   }, [])
 
+  const clearHistory = useCallback(() => {
+    setHistory([])
+    if (session?.access_token) {
+      api.delete('/user/searches', { headers: authHeaders(session.access_token) })
+        .catch(() => showToast('Could not clear history on the server. Try again.'))
+    }
+  }, [session, showToast])
+
   const renamePlaylist = useCallback(async (id: string, name: string) => {
     if (!session) return
     setSavedPlaylists(prev => prev.map(p => p.id === id ? { ...p, name } : p))
@@ -279,7 +287,7 @@ export default function App() {
                 <span className="label-micro">Recent</span>
                 <button
                   onClick={() => {
-                    if (clearConfirm) { setHistory([]); setClearConfirm(false) }
+                    if (clearConfirm) { clearHistory(); setClearConfirm(false) }
                     else { setClearConfirm(true); setTimeout(() => setClearConfirm(false), 2000) }
                   }}
                   style={{

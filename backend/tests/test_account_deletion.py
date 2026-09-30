@@ -65,3 +65,20 @@ def test_delete_account_failure_returns_500(client, monkeypatch):
     finally:
         main.app.dependency_overrides.clear()
     assert res.status_code == 500
+
+
+def test_clear_searches_only_deletes_searches(client, monkeypatch):
+    fake = FakeSupabase()
+    monkeypatch.setattr(main, "supabase_admin", fake)
+    _as_user("user-1")
+    try:
+        res = client.delete("/user/searches")
+    finally:
+        main.app.dependency_overrides.clear()
+    assert res.status_code == 200
+    assert fake.log == [("delete", "searches", (("user_id", "user-1"),))]
+
+
+def test_clear_searches_requires_auth(client, monkeypatch):
+    monkeypatch.setattr(main, "supabase_admin", FakeSupabase())
+    assert client.delete("/user/searches").status_code == 401
