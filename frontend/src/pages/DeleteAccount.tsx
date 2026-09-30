@@ -98,6 +98,23 @@ export default function DeleteAccount() {
             )}
           </div>
 
+          <div id="data">
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 10px' }}>Delete some data but keep your account</h2>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              <li>
+                <strong>Saved playlists:</strong> open the menu, find the playlist under <strong>Saved</strong> and tap <strong>×</strong> next to it.
+                It's removed immediately.
+              </li>
+              <li>
+                <strong>Search history:</strong> email{' '}
+                <a href="mailto:ananyashanker24@gmail.com?subject=Delete%20my%20Indelify%20search%20history" style={linkStyle}>
+                  ananyashanker24@gmail.com
+                </a>{' '}
+                from the address linked to your account and we'll delete it within 7 days. Your account and playlists are kept.
+              </li>
+            </ul>
+          </div>
+
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 10px' }}>By email</h2>
             <p style={{ margin: 0 }}>
