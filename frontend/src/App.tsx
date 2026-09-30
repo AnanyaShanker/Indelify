@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import MoodSearch from './components/MoodSearch'
 import EnvironmentTab from './components/EnvironmentTab'
 import DreamMode from './components/DreamMode'
@@ -582,6 +582,8 @@ function AppFooter() {
         }}>Indelify</span>
         <span style={{ color: 'var(--text-faint)', fontSize: 12, opacity: 0.4 }}>·</span>
         <span style={{ fontSize: 11, color: 'var(--text-ultrafaint)' }}>© 2026 Ananya Shanker</span>
+        <span style={{ color: 'var(--text-faint)', fontSize: 12, opacity: 0.4 }}>·</span>
+        <Link to="/privacy" style={{ fontSize: 11, color: 'var(--text-faint)', textDecoration: 'none' }}>Privacy</Link>
       </div>
       <div style={{ fontSize: 11, color: 'rgba(212,136,138,0.58)', fontStyle: 'italic', letterSpacing: '0.04em' }}>
         made with ♡ by ananya

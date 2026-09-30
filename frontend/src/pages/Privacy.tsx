@@ -47,7 +47,7 @@ export default function Privacy() {
           </Section>
 
           <Section title="What data we collect">
-            <p>When you sign in, we receive basic profile information from your OAuth provider (Google or Spotify):</p>
+            <p>When you sign in, we receive basic profile information from Google when you sign in with your Google account:</p>
             <ul>
               <li>Your name and email address</li>
               <li>Your profile picture URL</li>
@@ -68,7 +68,6 @@ export default function Privacy() {
             <ul>
               <li>To save your playlists and search history to your account</li>
               <li>To display your name and profile picture in the app</li>
-              <li>To push playlists to your Spotify account when you request it</li>
             </ul>
             <p>We do not sell your data, share it with advertisers, or use it for any purpose beyond operating the app.</p>
           </Section>
@@ -77,7 +76,7 @@ export default function Privacy() {
             <p>Indelify uses the following external services:</p>
             <ul>
               <li><strong>Google OAuth</strong> — for sign-in. Governed by Google's Privacy Policy.</li>
-              <li><strong>Spotify OAuth</strong> — for sign-in and playlist creation. Governed by Spotify's Privacy Policy.</li>
+              <li><strong>Spotify and Genius</strong> — used to look up songs, previews and lyrics information. We don't send them any of your personal data.</li>
               <li><strong>Supabase</strong> — stores your account data and playlists. Data is stored in the EU (AWS eu-west-1). Governed by Supabase's Privacy Policy.</li>
               <li><strong>Groq / Meta LLaMA</strong> — processes your text and image inputs to generate music recommendations. Your inputs are sent to Groq's API but are not linked to your identity.</li>
             </ul>
