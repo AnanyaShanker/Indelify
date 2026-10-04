@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, memo } from 'react'
 import { createPortal } from 'react-dom'
 import api, { extractError } from '../api'
 import type { LangPref, DreamResult, SearchResult } from '../types'
 import { useTheme } from '../hooks/useTheme'
+import { Capacitor } from '@capacitor/core'
+import { SpeechRecognition } from '@capacitor-community/speech-recognition'
 
 const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
   id:     i,
@@ -158,7 +160,8 @@ export default function DreamMode({ langPref, onResult, onSavePlaylist, onFullsc
 
   return (
     <>
-      <AmbientLayer zIndex={0} hue={null} />
+      {/* Only one ambient layer is mounted at a time — the page copy is fully covered by the portal overlay */}
+      {!isFullScreen && <AmbientLayer zIndex={0} hue={null} />}
       <div style={{ position: 'relative', zIndex: 1 }}>
         {!isFullScreen && (
           <div style={{ animation: 'fadeUpBlur 1s ease forwards' }}>
@@ -224,7 +227,7 @@ export default function DreamMode({ langPref, onResult, onSavePlaylist, onFullsc
   )
 }
 
-function AmbientLayer({ zIndex, hue }: { zIndex: number; hue: number | null }) {
+const AmbientLayer = memo(function AmbientLayer({ zIndex, hue }: { zIndex: number; hue: number | null }) {
   const h  = hue
   const h2 = hue !== null ? (hue + 35) % 360 : null
 
@@ -250,7 +253,7 @@ function AmbientLayer({ zIndex, hue }: { zIndex: number; hue: number | null }) {
       ))}
     </div>
   )
-}
+})
 
 function DreamForm({ dream, setDream, onSubmit, langPref }: {
   dream: string
@@ -260,32 +263,107 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
 }) {
   const canSubmit = dream.trim().length > 0
   const isLight = useTheme()
+  const isNative = Capacitor.isNativePlatform()
   const [recording, setRecording] = useState(false)
+  const [micSupported, setMicSupported] = useState<boolean | null>(null)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
   const recognitionRef = useRef<any>(null)
   const baseTextRef    = useRef('')
+  const gotResultRef   = useRef(false)
+  // Fix #3: default to en-US when langPref is 'all' — empty string is unpredictable across browsers
+  const langCode = langPref === 'hindi-bollywood' ? 'hi-IN' : 'en-US'
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const SpeechRec = typeof window !== 'undefined'
-    ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
-    : null
-  const micSupported = !!SpeechRec
+  // Native (Capacitor) uses the on-device recognizer; the WebView's web Speech API is unreliable on Android.
+  useEffect(() => {
+    if (isNative) {
+      SpeechRecognition.available()
+        .then(({ available }) => setMicSupported(available))
+        .catch(() => setMicSupported(false))
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      setMicSupported(!!SpeechRec)
+    }
+  }, [isNative])
 
-  useEffect(() => () => { recognitionRef.current?.stop() }, [])
+  useEffect(() => () => {
+    recognitionRef.current?.stop()
+    if (isNative) {
+      SpeechRecognition.removeAllListeners().catch(() => {})
+      SpeechRecognition.stop().catch(() => {})
+    }
+  }, [isNative])
 
-  function toggleRecording() {
+  // The native plugin doesn't emit an event when recognition fails (errors only reject the
+  // start call, which has already resolved in partial-results mode), so poll its listening
+  // state while the mic is on and reset the button once the session has really ended.
+  useEffect(() => {
+    if (!isNative || !recording) return
+    const startedAt = Date.now()
+    let sawListening = false
+    const id = setInterval(async () => {
+      const { listening } = await SpeechRecognition.isListening().catch(() => ({ listening: false }))
+      if (listening) { sawListening = true; return }
+      if (!sawListening && Date.now() - startedAt < 3000) return
+      setRecording(false)
+      if (!gotResultRef.current) setVoiceError('Voice input stopped. Try again.')
+    }, 500)
+    return () => clearInterval(id)
+  }, [isNative, recording])
+
+  async function startNativeRecording() {
+    const perm = await SpeechRecognition.requestPermissions()
+    if (perm.speechRecognition !== 'granted') {
+      setVoiceError('Microphone access is needed to dictate. Allow it in your phone settings and try again.')
+      return
+    }
+    setVoiceError(null)
+    baseTextRef.current = dream
+    gotResultRef.current = false
+    await SpeechRecognition.removeAllListeners()
+    await SpeechRecognition.addListener('partialResults', ({ matches }) => {
+      const spoken = (matches?.[0] ?? '').trim()
+      if (spoken) gotResultRef.current = true
+      const base   = baseTextRef.current.trimEnd()
+      setDream(base + (base && spoken ? ' ' : '') + spoken)
+    })
+    await SpeechRecognition.addListener('listeningState', ({ status }) => {
+      if (status === 'stopped') setRecording(false)
+    })
+    setRecording(true)
+    SpeechRecognition.start({ language: langCode, maxResults: 1, partialResults: true, popup: false })
+      .catch(() => {
+        setRecording(false)
+        setVoiceError('Voice input stopped unexpectedly. Try again.')
+      })
+  }
+
+  async function toggleRecording() {
+    if (isNative) {
+      if (recording) {
+        await SpeechRecognition.stop().catch(() => {})
+        setRecording(false)
+      } else {
+        await startNativeRecording()
+      }
+      return
+    }
+
     if (recording) {
       recognitionRef.current?.stop()
       setRecording(false)
       return
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const rec = new SpeechRec()
     rec.continuous      = true
     rec.interimResults  = true
-    // Fix #3: default to en-US when langPref is 'all' — empty string is unpredictable across browsers
-    rec.lang = langPref === 'hindi-bollywood' ? 'hi-IN' : 'en-US'
+    rec.lang = langCode
 
     baseTextRef.current = dream
+    setVoiceError(null)
 
     rec.onresult = (event: any) => {
       let finals = '', interim = ''
@@ -298,12 +376,25 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
       setDream(base + (base && spoken ? ' ' : '') + spoken)
     }
 
-    rec.onend  = () => setRecording(false)
-    rec.onerror = () => setRecording(false)
+    rec.onend = () => setRecording(false)
+    // Surface failures instead of silently resetting the button
+    rec.onerror = (e: any) => {
+      setRecording(false)
+      const code = e?.error
+      if (code === 'not-allowed' || code === 'service-not-allowed') {
+        setVoiceError('Microphone access was blocked. Allow it in your browser settings to dictate.')
+      } else if (code !== 'no-speech' && code !== 'aborted') {
+        setVoiceError('Voice input stopped. Try again.')
+      }
+    }
 
     recognitionRef.current = rec
-    rec.start()
-    setRecording(true)
+    try {
+      rec.start()
+      setRecording(true)
+    } catch {
+      setVoiceError('Voice input isn\'t available in this browser.')
+    }
   }
 
   return (
@@ -322,7 +413,7 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
           fontSize: 'clamp(24px, 7vw, 36px)', fontWeight: 600, margin: 0,
           background: 'linear-gradient(135deg, #C4A0EC 0%, #9B7FE8 50%, #D8B4F8 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          animation: 'textGlow 7s ease-in-out infinite',
+          textShadow: '0 0 30px rgba(196,158,236,0.3)',
         }}>Dream Mode</h2>
         <p style={{
           color: isLight ? 'rgba(88,65,165,0.78)' : 'rgba(150,128,200,0.52)', fontSize: 15.5, marginTop: 12,
@@ -346,7 +437,6 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
             style={{
               width: '100%', boxSizing: 'border-box',
               background: 'var(--bg-input)',
-              backdropFilter: 'blur(22px)',
               border: 'none', outline: 'none', borderRadius: 20,
               padding: '22px 26px 22px 26px',
               color: 'var(--text-primary)',
@@ -412,6 +502,12 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
           </div>
         )}
 
+        {voiceError && (
+          <p style={{ fontSize: 12, color: 'rgba(240,155,165,0.85)', margin: '-4px 0 14px', lineHeight: 1.5, fontFamily: "'Inter', sans-serif" }}>
+            {voiceError}
+          </p>
+        )}
+
         <button
           type="submit"
           disabled={!canSubmit}
@@ -461,7 +557,7 @@ function DreamLoading() {
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'rgba(175,145,255,0.55)' }}>◐</div>
       </div>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, fontStyle: 'italic', color: 'rgba(148,122,208,0.65)', animation: 'textGlow 3.5s ease-in-out infinite', marginBottom: 8 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 19, fontStyle: 'italic', color: 'rgba(148,122,208,0.65)', marginBottom: 8 }}>
           Wandering through your dreamscape…
         </div>
         <div style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(100,72,175,0.38)', fontFamily: "'Inter', sans-serif" }}>
@@ -526,7 +622,7 @@ function DreamReveal({
           <div style={{ fontSize: 9.5, letterSpacing: '0.28em', textTransform: 'uppercase', color: t.textFaint, marginBottom: 22, fontFamily: "'Inter', sans-serif", transition: 'color 1.8s ease' }}>
             what it left behind
           </div>
-          <blockquote style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(19px, 3vw, 26px)', lineHeight: 1.72, fontStyle: 'italic', fontWeight: 400, color: 'rgba(218,200,255,0.88)', maxWidth: 660, margin: '0 auto', animation: 'textGlow 9s ease-in-out infinite', padding: 0, border: 'none' }}>
+          <blockquote style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(19px, 3vw, 26px)', lineHeight: 1.72, fontStyle: 'italic', fontWeight: 400, color: 'rgba(218,200,255,0.88)', maxWidth: 660, margin: '0 auto', textShadow: '0 0 22px rgba(196,158,236,0.22)', padding: 0, border: 'none' }}>
             "{result.emotional_residue}"
           </blockquote>
           <div style={{ width: 60, height: 1, margin: '32px auto 0', background: `linear-gradient(to right, transparent, ${t.shimmer}, transparent)`, transformOrigin: 'left', animation: 'shimmerLine 1.2s 0.4s ease both', transition: 'background 1.8s ease' }} />
@@ -663,7 +759,7 @@ function DreamImage({ src, attributes, onColorExtracted, hue }: { src: string; a
       {attributes && attributes.length > 0 && (
         <div style={{ position: 'absolute', bottom: 22, left: 24, right: 24, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {attributes.map((a, i) => (
-            <span key={i} style={{ padding: '5px 14px', borderRadius: 999, background: 'rgba(4,1,14,0.72)', border: `1px solid ${t.borderFaint}`, color: t.textBright, fontSize: 11, letterSpacing: '0.06em', backdropFilter: 'blur(12px)', fontFamily: "'Inter', sans-serif", transition: 'border-color 1.8s ease, color 1.8s ease' }}>{a}</span>
+            <span key={i} style={{ padding: '5px 14px', borderRadius: 999, background: 'rgba(4,1,14,0.82)', border: `1px solid ${t.borderFaint}`, color: t.textBright, fontSize: 11, letterSpacing: '0.06em', fontFamily: "'Inter', sans-serif", transition: 'border-color 1.8s ease, color 1.8s ease' }}>{a}</span>
           ))}
         </div>
       )}
@@ -683,7 +779,7 @@ function SymbolArtifact({ artifact, index, theme: t }: {
   return (
     <div
       onClick={() => setOpen(o => !o)}
-      style={{ position: 'relative', padding: '22px 30px', borderRadius: 18, background: open ? t.glowMid : 'rgba(12,4,32,0.72)', border: `1px solid ${open ? t.borderStrong : t.borderFaint}`, cursor: 'pointer', backdropFilter: 'blur(20px)', textAlign: 'center', minWidth: 148, transition: 'background 0.4s, border-color 0.4s, box-shadow 0.4s', boxShadow: open ? `0 0 40px ${t.shadowMid}, 0 0 80px ${t.shadowFaint}` : 'none', animation: `symbolReveal 0.9s ${index * 0.22}s ease both, symbolFloat ${5.5 + index * 1.1}s ${index * 0.9}s ease-in-out infinite` }}
+      style={{ position: 'relative', padding: '22px 30px', borderRadius: 18, background: open ? t.glowMid : 'rgba(12,4,32,0.84)', border: `1px solid ${open ? t.borderStrong : t.borderFaint}`, cursor: 'pointer', textAlign: 'center', minWidth: 148, transition: 'background 0.4s, border-color 0.4s, box-shadow 0.4s', boxShadow: open ? `0 0 40px ${t.shadowMid}, 0 0 80px ${t.shadowFaint}` : 'none', animation: `symbolReveal 0.9s ${index * 0.22}s ease both, symbolFloat ${5.5 + index * 1.1}s ${index * 0.9}s ease-in-out infinite` }}
     >
       <div style={{ fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: open ? t.borderStrong : t.textFaint, marginBottom: 10, fontFamily: "'Inter', sans-serif", transition: 'color 0.4s' }}>
         {NUMERALS[index] ?? index + 1}

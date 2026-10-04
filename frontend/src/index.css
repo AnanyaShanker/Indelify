@@ -440,19 +440,21 @@ img {
   100% { box-shadow: 0 0 0 0   rgba(248,113,113,0);    }
 }
 
+/* Dream reveal keyframes animate only opacity/transform. Animating CSS `filter: blur()`
+   on large layers is very expensive on Android WebView and was the main source of jank. */
 @keyframes dreamEnterBlur {
-  from { opacity: 0; filter: blur(28px) brightness(0.12) saturate(0.1); }
-  to   { opacity: 1; filter: blur(0)    brightness(1)    saturate(1);   }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes fadeUpBlur {
-  from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
-  to   { opacity: 1; transform: translateY(0);    filter: blur(0);   }
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
 
 @keyframes residueReveal {
-  from { opacity: 0; letter-spacing: 0.16em; filter: blur(10px); }
-  to   { opacity: 1; letter-spacing: 0.03em; filter: blur(0);   }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes imageBreathe {
@@ -489,13 +491,13 @@ img {
 }
 
 @keyframes symbolReveal {
-  from { opacity: 0; transform: scale(0.80) translateY(22px); filter: blur(14px); }
-  to   { opacity: 1; transform: scale(1.00) translateY( 0);   filter: blur(0);   }
+  from { opacity: 0; transform: scale(0.80) translateY(22px); }
+  to   { opacity: 1; transform: scale(1.00) translateY( 0);   }
 }
 
 @keyframes trackReveal {
-  from { opacity: 0; transform: translateX(-24px); filter: blur(6px); }
-  to   { opacity: 1; transform: translateX(  0);   filter: blur(0);  }
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(  0);   }
 }
 
 @keyframes orbPulse {
@@ -506,19 +508,9 @@ img {
 @keyframes spinOuter { to { transform: rotate( 360deg); } }
 @keyframes spinInner { to { transform: rotate(-360deg); } }
 
-@keyframes textGlow {
-  0%, 100% { text-shadow: 0 0 22px rgba(196,158,236,0.22); }
-  50%       { text-shadow: 0 0 50px rgba(196,158,236,0.58), 0 0 100px rgba(138,100,210,0.22); }
-}
-
 @keyframes vignettePulse {
   0%, 100% { opacity: 0.62; }
   50%       { opacity: 0.82; }
-}
-
-@keyframes inputGlow {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(90,50,180,0.20), inset 0 0 28px rgba(50,16,110,0.05); }
-  50%       { box-shadow: 0 0 0 1px rgba(138,100,210,0.48), inset 0 0 52px rgba(80,35,155,0.10); }
 }
 
 @keyframes shimmerLine {
@@ -783,8 +775,9 @@ img {
 [data-theme="light"] .ambient-particle-layer { opacity: 0.28; }
 
 /* Dream textarea: dreamy pulsing glow only in dark mode */
-.dream-textarea { animation: inputGlow 5s ease-in-out infinite; }
-[data-theme="light"] .dream-textarea { animation: none; box-shadow: 0 0 0 1px rgba(120,90,210,0.20) !important; }
+/* Static soft ring: an infinitely animated box-shadow repainted the textarea every frame */
+.dream-textarea { box-shadow: 0 0 0 1px rgba(90,50,180,0.20); }
+[data-theme="light"] .dream-textarea { box-shadow: 0 0 0 1px rgba(120,90,210,0.20) !important; }
 
 /* Intensity badges: light-mode variants with darker text for contrast */
 [data-theme="light"] .intensity-low    { color: #166534; border-color: rgba(22,101,52,0.35);  background: rgba(22,101,52,0.08);  }
@@ -968,7 +961,14 @@ img {
 
   /* ── Section headings scale down on mobile ── */
   .section-heading {
-    font-size: clamp(24px, 7vw, 36px) !important;
+    font-size: clamp(22px, 6.5vw, 30px) !important;
+  }
+
+  /* Feature header orb (Mood / Environment): smaller on phones so it doesn't dominate the screen */
+  .feature-orb {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 21px !important;
   }
 
   /* ── App footer stack ── */

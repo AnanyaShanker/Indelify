@@ -49,4 +49,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Dream Mode dictation (speech-to-text) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>

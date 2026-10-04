@@ -126,7 +126,7 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
     <div>
       {/* Identity header */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{
+        <div className="feature-orb" style={{
           width: 62, height: 62, borderRadius: '50%', margin: '0 auto 20px',
           background: 'radial-gradient(circle, rgba(110,197,184,0.55) 0%, rgba(60,155,148,0.18) 100%)',
           border: '1px solid rgba(110,197,184,0.38)',
