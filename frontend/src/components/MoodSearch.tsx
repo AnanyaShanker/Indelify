@@ -244,7 +244,7 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
 
       {/* Mood Search identity header */}
       <div style={{ textAlign: 'center', marginBottom: 24, position: 'relative', zIndex: 1 }}>
-        <div style={{
+        <div className="feature-orb" style={{
           width: 62, height: 62, borderRadius: '50%', margin: '0 auto 14px',
           background: 'radial-gradient(circle, rgba(244,132,95,0.55) 0%, rgba(200,80,40,0.18) 100%)',
           border: '1px solid rgba(244,132,95,0.38)',
@@ -284,7 +284,6 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
             style={{
               width: '100%', boxSizing: 'border-box',
               background: 'var(--bg-input)',
-              backdropFilter: 'blur(22px)',
               border: 'none', outline: 'none',
               borderRadius: 20,
               padding: '22px 26px',
