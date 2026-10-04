@@ -7,7 +7,7 @@ import { useTheme } from '../hooks/useTheme'
 
 interface Props {
   langPref: LangPref
-  onResult: (entry: SearchResult) => void
+  onResult: (entry: SearchResult, merge?: boolean) => void
   onSavePlaylist?: (entry: SearchResult) => void
   initialResult?: MoodResult
   initialInput?: string
@@ -161,6 +161,8 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
   const [text, setText]               = useState(initialInput ?? autoSearch ?? '')
   const [loading, setLoading]         = useState(false)
   const [result, setResult]           = useState<MoodResult | null>(initialResult ?? null)
+  // Latest shown result, read by doSearch so a refresh can merge into it.
+  const resultRef                     = useRef<MoodResult | null>(initialResult ?? null)
   const [error, setError]             = useState<string | null>(null)
   const [lastText, setLastText]       = useState(initialInput ?? autoSearch ?? '')
   const [copied, setCopied]           = useState(false)
@@ -182,6 +184,9 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
   const doSearch = useCallback(async (input: string, refresh = false, excludeTracks: Array<{ title: string; artist: string }> = []) => {
     if (pendingRef.current) return
     pendingRef.current = true
+    // Refresh asks the server for songs other than the ones shown (excludeTracks), so the
+    // new ones are added to the existing list instead of replacing it.
+    const previous = refresh ? resultRef.current : null
     setLoading(true); setResult(null); setError(null); setShowDetails(false)
     try {
       const { data } = await api.post<MoodResult>('/analyze/text', {
@@ -190,8 +195,15 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
         refresh,
         exclude: excludeTracks,
       })
-      setResult(data)
-      onResult({ tab: 'mood', label: data.mood_label, input, tracks: data.tracks, meta: data as unknown })
+      const seen = new Set((previous?.tracks ?? []).map(t => `${t.title}|${t.artist}`))
+      const fresh = data.tracks.filter(t => !seen.has(`${t.title}|${t.artist}`))
+      const merged: MoodResult = previous ? { ...data, tracks: [...previous.tracks, ...fresh] } : data
+      resultRef.current = merged
+      setResult(merged)
+      onResult(
+        { tab: 'mood', label: merged.mood_label, input, tracks: merged.tracks, meta: merged as unknown },
+        !!previous,
+      )
     } catch (err: unknown) {
       setError(extractError(err))
     } finally {
