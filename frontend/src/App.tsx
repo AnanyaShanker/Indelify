@@ -50,7 +50,7 @@ function getUrlParams(): { tab: TabId | null; q: string | null } {
 
 export default function App() {
   const navigate = useNavigate()
-  const { user, session, signOut } = useAuth()
+  const { user, session, loading: authLoading, signOut } = useAuth()
   const [activeTab, setActiveTab]         = useState<TabId>(() => getUrlParams().tab ?? 'mood')
   const [langPref, setLangPref]           = useState<LangPref>(() => (localStorage.getItem(LANG_PREF_KEY) as LangPref) || 'all')
   const [history, setHistory]             = useState<HistoryEntry[]>(loadHistory)
@@ -77,7 +77,16 @@ export default function App() {
   // Close the sign-in modal as soon as the user becomes authenticated
   useEffect(() => { if (user) setShowAuthModal(false) }, [user])
 
-  useEffect(() => { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)) }, [history])
+  // Recent searches are only kept for signed-in users. Signed out, the list is blank and
+  // nothing is written to storage, so the next person on this device sees no history.
+  useEffect(() => {
+    if (user) localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
+  }, [history, user])
+  useEffect(() => {
+    if (authLoading || user) return
+    setHistory([])
+    localStorage.removeItem(HISTORY_KEY)
+  }, [user, authLoading])
   useEffect(() => { localStorage.setItem(LANG_PREF_KEY, langPref) }, [langPref])
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -97,17 +106,40 @@ export default function App() {
     else setSavedPlaylists([])
   }, [session, fetchSavedPlaylists])
 
-  const addToHistory = useCallback((entry: SearchResult) => {
+  // merge = a refresh of the same search: update that chat's entry in place instead of
+  // adding a new one. The server already has the original row, so nothing is re-posted.
+  const addToHistory = useCallback((entry: SearchResult, merge = false) => {
+    if (!user) return
     const item: HistoryEntry = {
       id: Date.now(), ts: Date.now(),
       tab: entry.tab, label: entry.label, input: entry.input, trackCount: entry.tracks.length,
       meta: entry.meta,
     }
+    if (merge) {
+      setHistory(prev => {
+        const idx = prev.findIndex(h => h.tab === entry.tab && h.input === entry.input)
+        if (idx === -1) return [item, ...prev].slice(0, MAX_HISTORY)
+        const next = [...prev]
+        next[idx] = { ...prev[idx], label: item.label, trackCount: item.trackCount, meta: item.meta }
+        return next
+      })
+      return
+    }
     setHistory(prev => [item, ...prev].slice(0, MAX_HISTORY))
     if (session?.access_token) {
       api.post('/user/searches', entry, { headers: authHeaders(session.access_token) }).catch(() => {})
     }
-  }, [session])
+  }, [session, user])
+
+  const deleteHistoryItem = useCallback((id: number) => {
+    setHistory(prev => prev.filter(h => h.id !== id))
+  }, [])
+
+  async function handleSignOut() {
+    await signOut()
+    setHistory([])
+    localStorage.removeItem(HISTORY_KEY)
+  }
 
   const handleSavePlaylist = useCallback((entry: SearchResult) => {
     if (!user) { setShowAuthModal(true); return }
@@ -280,7 +312,7 @@ export default function App() {
               onRename={renamePlaylist}
             />
           )}
-          {history.length > 0 && (
+          {user && history.length > 0 && (
             <div style={{ padding: '0 10px 0' }}>
               <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0 6px 10px' }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 6, marginBottom: 8 }}>
@@ -302,26 +334,38 @@ export default function App() {
                 {(showAllHistory ? history : history.slice(0, 8)).map(item => {
                   const tab = TABS.find(t => t.id === item.tab)
                   return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.tab as TabId)
-                        setReplayEntry(item)
-                        setReplayKey(k => k + 1)
-                        setSidebarOpen(false)
-                      }}
-                      className="history-item"
-                    >
-                      <span style={{ fontSize: 12, color: 'var(--text-faint)', flexShrink: 0, marginTop: 1 }}>{tab?.icon}</span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.label || item.input?.slice(0, 28) || 'Search'}
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <button
+                        onClick={() => {
+                          setActiveTab(item.tab as TabId)
+                          setReplayEntry(item)
+                          setReplayKey(k => k + 1)
+                          setSidebarOpen(false)
+                        }}
+                        className="history-item"
+                        style={{ flex: 1, minWidth: 0 }}
+                      >
+                        <span style={{ fontSize: 12, color: 'var(--text-faint)', flexShrink: 0, marginTop: 1 }}>{tab?.icon}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.label || item.input?.slice(0, 28) || 'Search'}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 1 }}>
+                            {item.trackCount ?? 0} tracks · {timeAgo(item.ts)}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 1 }}>
-                          {item.trackCount ?? 0} tracks · {timeAgo(item.ts)}
-                        </div>
-                      </div>
-                    </button>
+                      </button>
+                      <button
+                        onClick={() => deleteHistoryItem(item.id)}
+                        title="Remove from recent"
+                        aria-label="Remove from recent"
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--text-faint)', fontSize: 14, lineHeight: 1,
+                          padding: '4px 6px', flexShrink: 0,
+                        }}
+                      >×</button>
+                    </div>
                   )
                 })}
               </div>
@@ -364,7 +408,7 @@ export default function App() {
                   </div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button
-                      onClick={signOut}
+                      onClick={handleSignOut}
                       style={{ background: 'none', border: 'none', color: 'var(--text-faint)', fontSize: 10, cursor: 'pointer', padding: 0, letterSpacing: '0.03em' }}
                     >sign out</button>
                     <button
