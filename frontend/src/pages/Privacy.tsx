@@ -79,6 +79,7 @@ export default function Privacy() {
               <li><strong>Spotify and Genius</strong> — used to look up songs, previews and lyrics information. We don't send them any of your personal data.</li>
               <li><strong>Supabase</strong> — stores your account data and playlists. Data is stored in the EU (AWS eu-west-1). Governed by Supabase's Privacy Policy.</li>
               <li><strong>Groq / Meta LLaMA</strong> — processes your text and image inputs to generate music recommendations. Your inputs are sent to Groq's API but are not linked to your identity.</li>
+              <li><strong>Your phone's speech recognition service (Google)</strong> — used when you dictate in Dream Mode. Governed by Google's Privacy Policy.</li>
             </ul>
           </Section>
 
@@ -86,6 +87,12 @@ export default function Privacy() {
             When you use the Environment tab, the photo you upload is sent directly to our AI model
             (Groq) for analysis and is not stored anywhere. It is discarded immediately after the
             response is returned.
+          </Section>
+
+          <Section title="Voice input">
+            When you tap "Speak instead" in Dream Mode, your phone's speech recognition service turns
+            what you say into text, which fills in your dream description. Indelify does not store
+            audio recordings. You can type your dream instead if you prefer not to use voice input.
           </Section>
 
           <Section title="Your rights">
