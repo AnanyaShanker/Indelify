@@ -35,7 +35,7 @@ export default function Privacy() {
             margin: '0 0 16px', letterSpacing: '-0.02em',
           }}>Privacy Policy</h1>
           <p style={{ fontSize: 13, color: 'var(--text-faint)', margin: 0 }}>
-            Last updated: September 30, 2026
+            Last updated: October 4, 2026
           </p>
         </div>
 
@@ -92,6 +92,7 @@ export default function Privacy() {
             <p>You can:</p>
             <ul>
               <li>Delete your saved playlists at any time from within the app</li>
+              <li>Clear your recent searches, or remove individual ones, from the Recent list in the menu</li>
               <li>Delete your account and all associated data at any time, either in the app
                 (menu → delete account) or at{' '}
                 <a href="/delete-account" style={{ color: '#F4845F' }}>indelify.vercel.app/delete-account</a>.
@@ -109,7 +110,8 @@ export default function Privacy() {
 
           <Section title="Cookies and local storage">
             Indelify does not use tracking cookies. We use your browser's localStorage to save
-            your theme preference and recent search history locally on your device.
+            your theme preference on your device. Your recent search history is kept on your device
+            only while you are signed in; signing out clears it from the device.
           </Section>
 
           <Section title="Changes to this policy">
