@@ -636,8 +636,12 @@ function DreamReveal({
               {result.mood_label}
             </h1>
           </div>
-          {result.dream_image && (
+          {result.dream_image ? (
             <DreamImage src={result.dream_image} attributes={result.music_attributes} onColorExtracted={onColorExtracted} hue={hue} />
+          ) : (
+            <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', margin: '12px 0 0' }}>
+              The dream picture couldn't be drawn this time. Send the dream again to get one.
+            </p>
           )}
         </div>
       )}

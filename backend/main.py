@@ -640,24 +640,27 @@ def _compress_image(image_bytes: bytes, mime_type: str) -> tuple[bytes, str]:
     return buf.getvalue(), "image/jpeg"
 
 
-def generate_dream_image(prompt: str) -> str | None:
+def generate_dream_image(prompt: str, attempts: int = 2) -> str | None:
     if not prompt:
         return None
     from urllib.parse import quote
-    try:
-        encoded = quote(prompt)
-        url = (
-            f"https://image.pollinations.ai/prompt/{encoded}"
-            "?width=1024&height=576&model=flux&nologo=true&enhance=false"
-        )
-        resp = requests.get(url, timeout=25)
-        if resp.status_code == 200 and "image" in resp.headers.get("content-type", ""):
-            content_type = resp.headers.get("content-type", "image/jpeg")
-            b64 = base64.b64encode(resp.content).decode("utf-8")
-            return f"data:{content_type};base64,{b64}"
-        return None
-    except Exception:
-        return None
+    encoded = quote(prompt)
+    url = (
+        f"https://image.pollinations.ai/prompt/{encoded}"
+        "?width=1024&height=576&model=flux&nologo=true&enhance=false"
+    )
+    # Pollinations is sometimes slow or briefly unavailable, so retry once before giving up.
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = requests.get(url, timeout=20)
+            content_type = resp.headers.get("content-type", "")
+            if resp.status_code == 200 and content_type.startswith("image"):
+                b64 = base64.b64encode(resp.content).decode("utf-8")
+                return f"data:{content_type};base64,{b64}"
+            logger.warning("dream image attempt %d: status=%s type=%s", attempt, resp.status_code, content_type)
+        except Exception as e:
+            logger.warning("dream image attempt %d failed: %s", attempt, e)
+    return None
 
 
 # ── Groq wrappers ──────────────────────────────────────────────────────────────
@@ -1076,6 +1079,9 @@ async def analyze_dream(request: Request, req: DreamRequest):
     cache_key = _cache_key("dream_v4", req.dream, lang)
     if not req.refresh:
         if cached := _cache_get(cache_key):
+            # Results are cached without the image. If the image was missing, try again.
+            if not cached.get("dream_image") and cached.get("image_prompt"):
+                cached = {**cached, "dream_image": generate_dream_image(cached["image_prompt"])}
             return cached
     try:
         prompt = f"""{DREAM_ENGINE_PREAMBLE}
@@ -1136,6 +1142,7 @@ CRITICAL: Track reasons must explain the emotional resonance, not just "this son
             "mood_label":               data.get("mood_label", ""),
             "music_attributes":         data.get("music_attributes", []),
             "dream_image":              dream_image,
+            "image_prompt":             data.get("image_prompt", ""),
             "tracks":                   tracks,
         }
         # Cache without the base64 image to keep memory usage bounded
