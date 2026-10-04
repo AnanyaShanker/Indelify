@@ -399,7 +399,8 @@ export default function App() {
                   <img
                     src={user.user_metadata.avatar_url}
                     alt=""
-                    style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, border: '1px solid var(--border)' }}
+                    referrerPolicy="no-referrer"
+                    style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, objectFit: 'cover', border: '1px solid var(--border)' }}
                   />
                 )}
                 <div style={{ minWidth: 0 }}>
@@ -507,7 +508,8 @@ export default function App() {
                   <img
                     src={user.user_metadata.avatar_url}
                     alt=""
-                    style={{ width: 28, height: 28, borderRadius: '50%', display: 'block' }}
+                    referrerPolicy="no-referrer"
+                    style={{ width: 28, height: 28, borderRadius: '50%', display: 'block', objectFit: 'cover' }}
                   />
                 ) : (
                   <span style={{ fontSize: 13, fontWeight: 700 }}>
