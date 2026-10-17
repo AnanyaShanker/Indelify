@@ -23,6 +23,7 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
   const [result, setResult]     = useState<EnvironmentResult | null>(initialResult ?? null)
   const [error, setError]       = useState<string | null>(null)
   const [copied, setCopied]     = useState(false)
+  const [slowWake, setSlowWake] = useState(false)
   const [replayLabel]           = useState(initialInput ?? '')
   const inputRef    = useRef<HTMLInputElement>(null)
   const pendingRef  = useRef(false)
@@ -84,7 +85,8 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
   async function doUpload(currentFiles: File[], refresh = false, excludeTracks: Array<{ title: string; artist: string }> = []) {
     if (!currentFiles.length || pendingRef.current) return
     pendingRef.current = true
-    setLoading(true); setResult(null); setError(null)
+    setLoading(true); setResult(null); setError(null); setSlowWake(false)
+    const wakeTimer = setTimeout(() => setSlowWake(true), 6000)
     try {
       const form = new FormData()
       currentFiles.forEach(f => form.append('files', f))
@@ -102,7 +104,8 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
     } catch (err: unknown) {
       setError(extractError(err))
     } finally {
-      setLoading(false)
+      clearTimeout(wakeTimer)
+      setLoading(false); setSlowWake(false)
       pendingRef.current = false
     }
   }
@@ -260,7 +263,9 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
       {loading && (
         <div>
           <div style={{ fontSize: 13, color: 'var(--text-faint)', marginBottom: 16, letterSpacing: '0.03em' }}>
-            {files.length > 1 ? `Reading the story across ${files.length} photos...` : 'Finding the soundtrack hidden in this image...'}
+            {slowWake
+              ? 'Still here — waking up the server after a quiet spell, this can take up to a minute...'
+              : files.length > 1 ? `Reading the story across ${files.length} photos...` : 'Finding the soundtrack hidden in this image...'}
           </div>
           <TrackCardSkeleton count={5} />
         </div>
