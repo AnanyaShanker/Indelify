@@ -29,7 +29,7 @@ export default function AuthCallback() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', background: '#100A0D',
+      height: 'var(--app-height)', background: '#100A0D',
       fontFamily: "'Inter', sans-serif", flexDirection: 'column', gap: 12,
     }}>
       <div style={{ width: 28, height: 28, border: '2px solid #F4845F', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />

@@ -13,6 +13,7 @@ import { useAuth } from './contexts/AuthContext'
 import api, { authHeaders } from './api'
 import { stopAll } from './lib/audioPlayer'
 import type { HistoryEntry, LangPref, MoodResult, DreamResult, LyricsResult, EnvironmentResult, SearchResult, SavedPlaylist } from './types'
+import { canHover } from './lib/hover'
 
 
 const TABS = [
@@ -202,7 +203,7 @@ export default function App() {
   const current = TABS.find(t => t.id === activeTab)!
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <div style={{ display: 'flex', minHeight: 'var(--app-height)', background: 'var(--bg-base)' }}>
 
       {/* Mobile sidebar overlay */}
       <div
@@ -220,7 +221,7 @@ export default function App() {
           background: 'var(--bg-sidebar)',
           borderRight: '1px solid var(--border)',
           display: dreamFullscreen ? 'none' : 'flex', flexDirection: 'column',
-          position: 'sticky', top: 0, height: '100vh',
+          position: 'sticky', top: 'env(safe-area-inset-top, 0px)', height: 'var(--app-height)',
           overflow: 'hidden',
         }}
       >
@@ -361,8 +362,9 @@ export default function App() {
                         aria-label="Remove from recent"
                         style={{
                           background: 'none', border: 'none', cursor: 'pointer',
-                          color: 'var(--text-faint)', fontSize: 14, lineHeight: 1,
+                          color: 'var(--text-faint)', fontSize: 16, lineHeight: 1,
                           padding: '4px 6px', flexShrink: 0,
+                          minWidth: 40, minHeight: 40,
                         }}
                       >×</button>
                     </div>
@@ -431,7 +433,7 @@ export default function App() {
                   width: '100%', letterSpacing: '0.01em',
                   transition: 'background 0.15s, border-color 0.15s',
                 }}
-                onMouseOver={e => { e.currentTarget.style.background = 'rgba(244,132,95,0.17)' }}
+                onMouseOver={e => { if (!canHover) return; e.currentTarget.style.background = 'rgba(244,132,95,0.17)' }}
                 onMouseOut={e => { e.currentTarget.style.background = 'rgba(244,132,95,0.10)' }}
               >
                 <span style={{ fontSize: 13 }}>✦</span>
@@ -446,6 +448,7 @@ export default function App() {
               background: 'var(--tab-hover-bg)', border: '1px solid var(--border)',
               borderRadius: 7, color: 'var(--text-faint)', fontSize: 13,
               cursor: 'pointer', padding: '7px 10px', lineHeight: 1,
+              minWidth: 44, minHeight: 44,
               transition: 'all 0.15s', flexShrink: 0,
             }}
           >{theme === 'dark' ? '☀' : '☾'}</button>
@@ -472,16 +475,17 @@ export default function App() {
             onClick={() => setSidebarOpen(o => !o)}
             aria-label="Toggle navigation"
           >☰</button>
-          <span style={{ fontSize: 26, color: meta.color, transition: 'color 0.5s ease', lineHeight: 1 }}>
+          <span className="topbar-icon" style={{ fontSize: 26, color: meta.color, transition: 'color 0.5s ease', lineHeight: 1 }}>
             {current.icon}
           </span>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: 17, fontWeight: 600, color: 'var(--text-primary)',
               letterSpacing: '-0.01em', lineHeight: 1.2,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{current.label}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 3 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {current.desc}
             </div>
           </div>
@@ -509,7 +513,7 @@ export default function App() {
                     src={user.user_metadata.avatar_url}
                     alt=""
                     referrerPolicy="no-referrer"
-                    style={{ width: 28, height: 28, borderRadius: '50%', display: 'block', objectFit: 'cover' }}
+                    style={{ width: 36, height: 36, borderRadius: '50%', display: 'block', objectFit: 'cover' }}
                   />
                 ) : (
                   <span style={{ fontSize: 13, fontWeight: 700 }}>

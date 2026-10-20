@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { playPreview } from '../lib/audioPlayer'
 import type { Track } from '../types'
+import { canHover } from '../lib/hover'
 
 interface Props { track: Track; index: number; rightBadge?: React.ReactNode }
 
@@ -31,7 +32,7 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
         {/* Album art + optional preview overlay */}
         <div
           style={{ flexShrink: 0, position: 'relative', width: 56, height: 56 }}
-          onMouseEnter={() => setArtHovered(true)}
+          onMouseEnter={() => { if (canHover) setArtHovered(true) }}
           onMouseLeave={() => setArtHovered(false)}
         >
           {track.album_art ? (
@@ -56,12 +57,12 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
               aria-label={isPlaying ? 'Pause preview' : 'Play 30s preview'}
               style={{
                 position: 'absolute', inset: 0, borderRadius: 10,
-                background: isPlaying || artHovered ? 'rgba(0,0,0,0.52)' : 'transparent',
+                background: isPlaying || artHovered ? 'rgba(0,0,0,0.52)' : canHover ? 'transparent' : 'rgba(0,0,0,0.32)',
                 border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'white', fontSize: 18, lineHeight: 1,
-                opacity: isPlaying || artHovered ? 1 : 0,
-                pointerEvents: isPlaying || artHovered ? 'auto' : 'none',
+                opacity: isPlaying || artHovered || !canHover ? 1 : 0,
+                pointerEvents: isPlaying || artHovered || !canHover ? 'auto' : 'none',
                 transition: 'background 0.18s, opacity 0.18s',
               }}
             >
@@ -107,7 +108,7 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
                     textDecoration: 'none', transition: 'background 0.2s, border-color 0.2s',
                     whiteSpace: 'nowrap',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(30,215,96,0.15)'; e.currentTarget.style.borderColor = 'rgba(30,215,96,0.38)' }}
+                  onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.background = 'rgba(30,215,96,0.15)'; e.currentTarget.style.borderColor = 'rgba(30,215,96,0.38)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(30,215,96,0.08)'; e.currentTarget.style.borderColor = 'rgba(30,215,96,0.20)' }}
                 >
                   <SpotifyIcon /> Play
@@ -127,7 +128,7 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
                     textDecoration: 'none', transition: 'background 0.2s, border-color 0.2s',
                     whiteSpace: 'nowrap',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,0,0,0.14)'; e.currentTarget.style.borderColor = 'rgba(255,0,0,0.32)' }}
+                  onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.background = 'rgba(255,0,0,0.14)'; e.currentTarget.style.borderColor = 'rgba(255,0,0,0.32)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,0,0,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,0,0,0.18)' }}
                 >
                   <YouTubeIcon /> Search
@@ -147,7 +148,7 @@ export default function TrackCard({ track, index, rightBadge }: Props) {
                     padding: '5px 10px', fontSize: 12, fontWeight: 600,
                     textDecoration: 'none', transition: 'background 0.2s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,215,0,0.12)'}
+                  onMouseEnter={e => { if (canHover) e.currentTarget.style.background = 'rgba(255,215,0,0.12)' }}
                   onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,215,0,0.06)'}
                 >
                   Genius

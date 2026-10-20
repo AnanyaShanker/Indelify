@@ -5,6 +5,7 @@ import type { LangPref, DreamResult, SearchResult } from '../types'
 import { useTheme } from '../hooks/useTheme'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
+import { canHover } from '../lib/hover'
 
 const PARTICLES = Array.from({ length: 26 }, (_, i) => ({
   id:     i,
@@ -484,7 +485,7 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
                 fontFamily: "'Inter', sans-serif",
                 cursor: 'pointer', transition: 'all 0.25s',
               }}
-              onMouseEnter={e => { if (!recording) { e.currentTarget.style.background = 'rgba(138,100,210,0.18)'; e.currentTarget.style.borderColor = 'rgba(138,100,210,0.50)'; e.currentTarget.style.color = 'rgba(220,190,255,0.9)' } }}
+              onMouseEnter={e => { if (!canHover) return; if (!recording) { e.currentTarget.style.background = 'rgba(138,100,210,0.18)'; e.currentTarget.style.borderColor = 'rgba(138,100,210,0.50)'; e.currentTarget.style.color = 'rgba(220,190,255,0.9)' } }}
               onMouseLeave={e => { if (!recording) { e.currentTarget.style.background = 'rgba(138,100,210,0.10)'; e.currentTarget.style.borderColor = 'rgba(138,100,210,0.28)'; e.currentTarget.style.color = 'rgba(196,160,236,0.72)' } }}
             >
               <MicIcon recording={recording} />
@@ -526,7 +527,7 @@ function DreamForm({ dream, setDream, onSubmit, langPref }: {
             opacity: canSubmit ? 1 : 0.3,
             transition: 'all 0.3s',
           }}
-          onMouseEnter={e => { if (canSubmit) { e.currentTarget.style.boxShadow = '0 10px 40px rgba(70,28,155,0.55)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
+          onMouseEnter={e => { if (!canHover) return; if (canSubmit) { e.currentTarget.style.boxShadow = '0 10px 40px rgba(70,28,155,0.55)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = '' }}
         >
           Enter the Dream
@@ -705,27 +706,27 @@ function DreamReveal({
               onClick={onRefresh}
               title="Get different songs for this dream"
               style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 14px', color: t.textMid, fontSize: 14, cursor: 'pointer', transition: 'all 0.3s', lineHeight: 1 }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright }}
+              onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid }}
             >↻</button>
             {onSavePlaylist && (
               <button
                 onClick={() => onSavePlaylist({ tab: 'dream', label: result.mood_label, input: dreamText, tracks: result.tracks })}
                 style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 20px', color: t.textMid, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.3s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright }}
+                onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid }}
               >save playlist</button>
             )}
             <button
               onClick={copyTracks}
               style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 20px', color: copied ? 'rgba(200,175,255,0.88)' : t.textMid, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.3s' }}
-              onMouseEnter={e => { if (!copied) { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright } }}
+              onMouseEnter={e => { if (!canHover) return; if (!copied) { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright } }}
               onMouseLeave={e => { if (!copied) { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid } }}
             >{copied ? '✦ copied' : 'copy list'}</button>
             <button
               onClick={copyLink}
               style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '8px 20px', color: linkCopied ? 'rgba(200,175,255,0.88)' : t.textMid, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.3s' }}
-              onMouseEnter={e => { if (!linkCopied) { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright } }}
+              onMouseEnter={e => { if (!canHover) return; if (!linkCopied) { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textBright } }}
               onMouseLeave={e => { if (!linkCopied) { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid } }}
             >{linkCopied ? '✦ link copied' : 'share'}</button>
           </div>
@@ -733,7 +734,7 @@ function DreamReveal({
           <button
             onClick={onReset}
             style={{ background: 'none', border: `1px solid ${t.borderFaint}`, borderRadius: 10, padding: '10px 30px', color: t.textMid, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'all 0.35s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.color = 'rgba(220,205,255,0.85)'; e.currentTarget.style.boxShadow = `0 0 28px ${t.shadowFaint}` }}
+            onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.borderColor = t.borderStrong; e.currentTarget.style.color = 'rgba(220,205,255,0.85)'; e.currentTarget.style.boxShadow = `0 0 28px ${t.shadowFaint}` }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderFaint; e.currentTarget.style.color = t.textMid; e.currentTarget.style.boxShadow = '' }}
           >
             Return to waking
@@ -845,7 +846,7 @@ function DreamTrackFragment({ track, index, total, isWaking, theme: t }: {
             href={track.spotify_url} target="_blank" rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             style={{ flexShrink: 0, fontSize: 11, letterSpacing: '0.06em', color: 'rgba(30,215,96,0.45)', textDecoration: 'none', padding: '5px 12px', border: '1px solid rgba(30,215,96,0.14)', borderRadius: 6, transition: 'all 0.25s', fontFamily: "'Inter', sans-serif" }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(30,215,96,0.88)'; e.currentTarget.style.borderColor = 'rgba(30,215,96,0.42)' }}
+            onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.color = 'rgba(30,215,96,0.88)'; e.currentTarget.style.borderColor = 'rgba(30,215,96,0.42)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'rgba(30,215,96,0.45)'; e.currentTarget.style.borderColor = 'rgba(30,215,96,0.14)' }}
           >play</a>
         )}

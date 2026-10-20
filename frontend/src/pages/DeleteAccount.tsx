@@ -22,7 +22,7 @@ export default function DeleteAccount() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: 'var(--bg-base)',
+      minHeight: 'var(--app-height)', background: 'var(--bg-base)',
       fontFamily: "'Inter', sans-serif", color: 'var(--text-primary)',
       padding: '60px 24px 100px',
     }}>

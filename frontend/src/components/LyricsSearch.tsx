@@ -4,6 +4,7 @@ import TrackCard from './TrackCard'
 import TrackCardSkeleton from './TrackCardSkeleton'
 import type { LangPref, LyricsResult, SearchResult } from '../types'
 import { useTheme } from '../hooks/useTheme'
+import { canHover } from '../lib/hover'
 
 interface Props {
   langPref: LangPref
@@ -179,7 +180,7 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
               opacity: canSubmit ? 1 : 0.4,
               transition: 'all 0.3s', whiteSpace: 'nowrap',
             }}
-            onMouseEnter={e => { if (canSubmit) { e.currentTarget.style.boxShadow = '0 10px 36px rgba(185,145,30,0.40)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
+            onMouseEnter={e => { if (!canHover) return; if (canSubmit) { e.currentTarget.style.boxShadow = '0 10px 36px rgba(185,145,30,0.40)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = '' }}
           >
             {loading ? 'Thinking…' : 'Find Songs'}
@@ -201,7 +202,7 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
               cursor: 'pointer', transition: 'all 0.18s',
               fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.17)' : 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = isLight ? 'rgba(70,45,0,0.95)' : 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.48)' : 'rgba(232,192,106,0.42)' }}
+            onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.17)' : 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = isLight ? 'rgba(70,45,0,0.95)' : 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.48)' : 'rgba(232,192,106,0.42)' }}
             onMouseLeave={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.09)' : 'rgba(232,192,106,0.07)'; e.currentTarget.style.color = isLight ? 'rgba(90,60,5,0.80)' : 'rgba(232,192,106,0.72)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.28)' : 'rgba(232,192,106,0.22)' }}
           >{s}</button>
         ))}
@@ -329,7 +330,7 @@ export default function LyricsSearch({ langPref, onResult, onSavePlaylist, initi
                       cursor: 'pointer', transition: 'all 0.18s',
                       fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.17)' : 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = isLight ? 'rgba(70,45,0,0.95)' : 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.48)' : 'rgba(232,192,106,0.42)' }}
+                    onMouseEnter={e => { if (!canHover) return; e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.17)' : 'rgba(232,192,106,0.14)'; e.currentTarget.style.color = isLight ? 'rgba(70,45,0,0.95)' : 'rgba(232,192,106,0.95)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.48)' : 'rgba(232,192,106,0.42)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = isLight ? 'rgba(150,110,15,0.09)' : 'rgba(232,192,106,0.07)'; e.currentTarget.style.color = isLight ? 'rgba(90,60,5,0.80)' : 'rgba(232,192,106,0.72)'; e.currentTarget.style.borderColor = isLight ? 'rgba(150,110,15,0.28)' : 'rgba(232,192,106,0.22)' }}
                   >{term}</button>
                 ))}

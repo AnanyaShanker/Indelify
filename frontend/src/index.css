@@ -116,7 +116,29 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Visible height between the system bars (body pads for them below). */
+:root {
+  --app-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+@supports (height: 100dvh) {
+  :root {
+    --app-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Long words wrap instead of running off narrow screens */
+h1, h2, h3 { overflow-wrap: break-word; }
+
+button {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Tap feedback now that the WebView's highlight box is off */
+button:active:not(:disabled) { filter: brightness(0.9); }
 
 body {
   background-color: var(--bg-base);
@@ -140,7 +162,7 @@ img {
 }
 
 #root {
-  min-height: 100vh;
+  min-height: var(--app-height);
   width: 100%;
 }
 
@@ -191,10 +213,12 @@ img {
   letter-spacing: 0.01em;
 }
 
-.btn-primary:hover:not(:disabled) {
-  opacity: 0.88;
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px var(--btn-shadow);
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.88;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px var(--btn-shadow);
+  }
 }
 
 .btn-primary:active { transform: translateY(0); }
@@ -267,13 +291,17 @@ img {
   transition: opacity 0.25s ease;
 }
 
-.track-card:hover {
-  border-color: var(--card-hover-border);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px var(--card-hover-shadow);
+@media (hover: hover) {
+  .track-card:hover {
+    border-color: var(--card-hover-border);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px var(--card-hover-shadow);
+  }
 }
 
-.track-card:hover::before { opacity: 0.6; }
+@media (hover: hover) {
+  .track-card:hover::before { opacity: 0.6; }
+}
 
 .tab-btn {
   display: flex;
@@ -293,9 +321,11 @@ img {
   font-family: 'Inter', sans-serif;
 }
 
-.tab-btn:hover {
-  background: var(--tab-hover-bg);
-  color: var(--tab-hover-color);
+@media (hover: hover) {
+  .tab-btn:hover {
+    background: var(--tab-hover-bg);
+    color: var(--tab-hover-color);
+  }
 }
 
 .tab-btn.active {
@@ -316,9 +346,16 @@ img {
   background: var(--drop-bg);
 }
 
-.drop-zone:hover, .drop-zone.active {
+.drop-zone.active {
   border-color: var(--accent);
   background: var(--drop-hover-bg);
+}
+
+@media (hover: hover) {
+  .drop-zone:hover {
+    border-color: var(--accent);
+    background: var(--drop-hover-bg);
+  }
 }
 
 .intensity-badge {
@@ -385,7 +422,9 @@ img {
   transition: background 0.15s;
 }
 
-.history-item:hover { background: var(--tab-hover-bg); }
+@media (hover: hover) {
+  .history-item:hover { background: var(--tab-hover-bg); }
+}
 
 .error-banner {
   background: rgba(100, 20, 30, 0.12);
@@ -555,7 +594,7 @@ img {
 /* ── Landing layout classes ──────────────────────────────────────────────────── */
 
 .landing-root {
-  min-height: 100vh;
+  min-height: var(--app-height);
   background: var(--bg-base);
   color: var(--text-primary);
   overflow-x: hidden;
@@ -605,12 +644,14 @@ img {
   transition: border-color 0.22s, color 0.22s, background 0.22s, box-shadow 0.22s, opacity 0.22s;
 }
 
-.landing-nav-btn:hover {
-  border-color: var(--card-hover-border);
-  color: var(--accent-mid);
-  background: var(--tab-hover-bg);
-  box-shadow: 0 0 20px var(--btn-shadow);
-  opacity: 1;
+@media (hover: hover) {
+  .landing-nav-btn:hover {
+    border-color: var(--card-hover-border);
+    color: var(--accent-mid);
+    background: var(--tab-hover-bg);
+    box-shadow: 0 0 20px var(--btn-shadow);
+    opacity: 1;
+  }
 }
 
 .landing-hero-btn {
@@ -629,9 +670,11 @@ img {
               box-shadow 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.landing-hero-btn:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 18px 52px var(--btn-shadow);
+@media (hover: hover) {
+  .landing-hero-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 18px 52px var(--btn-shadow);
+  }
 }
 
 .landing-secondary-btn {
@@ -649,12 +692,14 @@ img {
   transition: border-color 0.28s, color 0.28s, box-shadow 0.28s, background 0.28s, opacity 0.28s;
 }
 
-.landing-secondary-btn:hover {
-  border-color: var(--card-hover-border);
-  color: var(--accent-mid);
-  box-shadow: 0 0 36px var(--btn-shadow);
-  background: var(--tab-hover-bg);
-  opacity: 1;
+@media (hover: hover) {
+  .landing-secondary-btn:hover {
+    border-color: var(--card-hover-border);
+    color: var(--accent-mid);
+    box-shadow: 0 0 36px var(--btn-shadow);
+    background: var(--tab-hover-bg);
+    opacity: 1;
+  }
 }
 
 /* ── Scene cards ─────────────────────────────────────────────────────────────── */
@@ -672,11 +717,13 @@ img {
   transition: border-color 0.38s, transform 0.32s, box-shadow 0.32s;
 }
 
-.scene-card:hover {
-  border-color: var(--scene-color, rgba(212,136,138,0.38));
-  transform: translateY(-5px);
-  box-shadow: 0 28px 80px var(--scene-glow, rgba(212,136,138,0.16)),
-              0 8px 24px rgba(0, 0, 0, 0.3);
+@media (hover: hover) {
+  .scene-card:hover {
+    border-color: var(--scene-color, rgba(212,136,138,0.38));
+    transform: translateY(-5px);
+    box-shadow: 0 28px 80px var(--scene-glow, rgba(212,136,138,0.16)),
+                0 8px 24px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .scene-cards-grid {
@@ -850,9 +897,11 @@ img {
   transition: color 0.15s, background 0.15s;
 }
 
-.hamburger-btn:hover {
-  color: var(--text-primary);
-  background: var(--tab-active-bg);
+@media (hover: hover) {
+  .hamburger-btn:hover {
+    color: var(--text-primary);
+    background: var(--tab-active-bg);
+  }
 }
 
 .mobile-signin-btn {
@@ -880,9 +929,10 @@ img {
   /* Sidebar becomes a fixed drawer */
   .app-sidebar {
     position: fixed !important;
-    top: 0;
+    top: 0 !important;
     left: 0;
-    height: 100vh;
+    height: 100vh !important;
+    height: 100dvh !important;
     z-index: 200;
     transform: translateX(-100%);
     padding-top: env(safe-area-inset-top, 0px);
@@ -919,8 +969,8 @@ img {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1.5px solid var(--border);
     background: var(--bg-card);
@@ -934,6 +984,10 @@ img {
   /* Topbar & content */
   .topbar-inner {
     padding: 0 16px;
+    gap: 10px !important;
+  }
+  .landing-hero {
+    padding-inline: 20px !important;
   }
   .main-content-area {
     padding: 24px 20px;
@@ -1041,4 +1095,10 @@ img {
     display: flex;
     justify-content: center;
   }
+}
+
+/* Very narrow phones (or a large "Display size" setting): drop the tab icon so
+   the topbar title keeps room next to the menu, language and account buttons */
+@media (max-width: 360px) {
+  .topbar-icon { display: none; }
 }

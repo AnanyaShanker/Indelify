@@ -60,7 +60,7 @@ export default function Callback() {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', background: '#100A0D', color: '#F5EEF0',
+        height: 'var(--app-height)', background: '#100A0D', color: '#F5EEF0',
         fontFamily: "'Inter', sans-serif", flexDirection: 'column', gap: 16,
         padding: 24, textAlign: 'center',
       }}>
@@ -87,7 +87,7 @@ export default function Callback() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', background: '#100A0D',
+      height: 'var(--app-height)', background: '#100A0D',
       fontFamily: "'Inter', sans-serif", flexDirection: 'column', gap: 12,
     }}>
       <div style={{

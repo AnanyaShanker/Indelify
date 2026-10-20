@@ -4,6 +4,7 @@ import TrackCard from './TrackCard'
 import TrackCardSkeleton from './TrackCardSkeleton'
 import type { LangPref, MoodResult, SearchResult } from '../types'
 import { useTheme } from '../hooks/useTheme'
+import { canHover } from '../lib/hover'
 
 interface Props {
   langPref: LangPref
@@ -343,7 +344,7 @@ export default function MoodSearch({ langPref, onResult, onSavePlaylist, initial
             opacity: (!loading && text.trim()) ? 1 : 0.35,
             transition: 'all 0.3s',
           }}
-          onMouseEnter={e => { if (!loading && text.trim()) { e.currentTarget.style.boxShadow = '0 10px 40px rgba(210,90,55,0.55)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
+          onMouseEnter={e => { if (!canHover) return; if (!loading && text.trim()) { e.currentTarget.style.boxShadow = '0 10px 40px rgba(210,90,55,0.55)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = '' }}
         >
           {loading ? 'Reading your mood...' : 'Find My Songs'}

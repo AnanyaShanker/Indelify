@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { canHover } from '../lib/hover'
 
 interface Props {
   onClose: () => void
@@ -68,7 +69,7 @@ export default function AuthModal({ onClose }: Props) {
               opacity: loading ? 0.7 : 1,
               transition: 'border-color 0.15s, opacity 0.15s',
             }}
-            onMouseOver={e => { if (!loading) e.currentTarget.style.borderColor = 'var(--border-input)' }}
+            onMouseOver={e => { if (!canHover) return; if (!loading) e.currentTarget.style.borderColor = 'var(--border-input)' }}
           >
             <svg width="17" height="17" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

@@ -134,9 +134,9 @@ export default function Landing() {
       </nav>
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section style={{
+      <section className="landing-hero" style={{
         position: 'relative', zIndex: 1,
-        minHeight: 'calc(100vh - 70px)',
+        minHeight: 'calc(var(--app-height) - 70px)',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         textAlign: 'center',
         padding: '80px 32px 100px',
@@ -156,7 +156,7 @@ export default function Landing() {
         {/* Headline */}
         <h1 style={{
           fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 'clamp(46px, 7.2vw, 90px)',
+          fontSize: 'clamp(30px, 9vw, 90px)',
           fontWeight: 700, fontStyle: 'italic',
           lineHeight: 1.06, letterSpacing: '-0.025em',
           marginBottom: 52,

@@ -4,6 +4,7 @@ import TrackCard from './TrackCard'
 import TrackCardSkeleton from './TrackCardSkeleton'
 import type { LangPref, EnvironmentResult, SearchResult } from '../types'
 import { useTheme } from '../hooks/useTheme'
+import { canHover } from '../lib/hover'
 
 interface Props {
   langPref: LangPref
@@ -248,7 +249,7 @@ export default function EnvironmentTab({ langPref, onResult, onSavePlaylist, ini
               opacity: !loading ? 1 : 0.4,
               transition: 'all 0.3s',
             }}
-            onMouseEnter={e => { if (!loading) { e.currentTarget.style.boxShadow = '0 10px 40px rgba(60,175,160,0.45)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
+            onMouseEnter={e => { if (!canHover) return; if (!loading) { e.currentTarget.style.boxShadow = '0 10px 40px rgba(60,175,160,0.45)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
             onMouseLeave={e => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = '' }}
           >
             {loading ? 'Analyzing...' : files.length === 1 ? 'Read This Space' : `Find the Soundtrack for ${files.length} Photos`}

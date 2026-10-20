@@ -4,7 +4,7 @@ export default function NotFound() {
   const navigate = useNavigate()
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      minHeight: 'var(--app-height)', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       background: 'var(--bg-base)', padding: '40px 24px', textAlign: 'center',
     }}>

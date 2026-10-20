@@ -67,7 +67,7 @@ export default function SpotifyWriteCallback() {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', background: '#111', color: '#fff',
+      height: 'var(--app-height)', background: '#111', color: '#fff',
       fontFamily: 'Inter, sans-serif', fontSize: 14, flexDirection: 'column', gap: 12,
     }}>
       <div style={{ width: 32, height: 32, border: '2px solid #1DB954', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
