@@ -14,12 +14,13 @@ import json
 import hashlib
 import logging
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
 import base64
 import random
 import time
+import threading
 import io
 from PIL import Image, UnidentifiedImageError
 import pillow_heif
@@ -72,7 +73,16 @@ def get_current_user(authorization: str | None = Header(None)):
         return None
 
 
-limiter = Limiter(key_func=get_remote_address)
+def _client_ip(request: Request) -> str:
+    # On Render, request.client is the load balancer, so every user would share
+    # one rate-limit bucket. The original client is first in X-Forwarded-For.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+limiter = Limiter(key_func=_client_ip)
 app = FastAPI(title="Indelify API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -124,6 +134,7 @@ _genius_client = lyricsgenius.Genius(
 _cache: dict = {}
 CACHE_TTL      = timedelta(hours=1)
 MAX_CACHE_SIZE = 500
+_cache_lock    = threading.Lock()
 
 
 def _cache_key(*parts) -> str:
@@ -131,20 +142,22 @@ def _cache_key(*parts) -> str:
 
 
 def _cache_get(key: str):
-    entry = _cache.get(key)
-    if entry:
-        val, ts = entry
-        if datetime.utcnow() - ts < CACHE_TTL:
-            return val
-        del _cache[key]
-    return None
+    with _cache_lock:
+        entry = _cache.get(key)
+        if entry:
+            val, ts = entry
+            if datetime.now(timezone.utc) - ts < CACHE_TTL:
+                return val
+            del _cache[key]
+        return None
 
 
 def _cache_set(key: str, val):
-    if len(_cache) >= MAX_CACHE_SIZE:
-        oldest = next(iter(_cache))
-        del _cache[oldest]
-    _cache[key] = (val, datetime.utcnow())
+    with _cache_lock:
+        if len(_cache) >= MAX_CACHE_SIZE:
+            oldest = next(iter(_cache))
+            del _cache[oldest]
+        _cache[key] = (val, datetime.now(timezone.utc))
 
 
 # ── language helpers ────────────────────────────────────────────────────────────
@@ -868,7 +881,7 @@ def root():
 
 @app.post("/analyze/text")
 @limiter.limit("20/minute")
-async def analyze_text(request: Request, req: TextRequest):
+def analyze_text(request: Request, req: TextRequest):
     lang = req.language_preference if req.language_preference in LANG_PREFS else "all"
 
     # Auto-detect Hindi/Hinglish and upgrade language preference accordingly
@@ -947,7 +960,7 @@ A user describes their mood: "{req.text}"
 
 @app.post("/analyze/image")
 @limiter.limit("5/minute")
-async def analyze_image(
+def analyze_image(
     request: Request,
     files: list[UploadFile] = File(...),
     language_preference: str = Form("all"),
@@ -982,7 +995,7 @@ async def analyze_image(
             mime = (f.content_type or "").lower().split(";")[0].strip()
             if mime not in _ALLOWED_IMG_MIME:
                 raise HTTPException(status_code=400, detail=f"Unsupported file type: {mime or 'unknown'}")
-            image_bytes = await f.read(_MAX_IMG_BYTES + 1)
+            image_bytes = f.file.read(_MAX_IMG_BYTES + 1)
             if len(image_bytes) > _MAX_IMG_BYTES:
                 raise HTTPException(status_code=413, detail="Image too large. Maximum size is 50 MB.")
             image_bytes, mime = _compress_image(image_bytes, mime)
@@ -1074,7 +1087,7 @@ CRITICAL DIVERSITY RULES for the tracks array:
 
 @app.post("/analyze/dream")
 @limiter.limit("20/minute")
-async def analyze_dream(request: Request, req: DreamRequest):
+def analyze_dream(request: Request, req: DreamRequest):
     lang = req.language_preference if req.language_preference in LANG_PREFS else "all"
     cache_key = _cache_key("dream_v4", req.dream, lang)
     if not req.refresh:
@@ -1157,7 +1170,7 @@ CRITICAL: Track reasons must explain the emotional resonance, not just "this son
 
 @app.post("/analyze/lyrics")
 @limiter.limit("20/minute")
-async def analyze_lyrics(request: Request, req: LyricsRequest):
+def analyze_lyrics(request: Request, req: LyricsRequest):
     lang = req.language_preference if req.language_preference in LANG_PREFS else "all"
     cache_key = _cache_key("lyrics", req.word.strip(), lang)
     if not req.refresh:
@@ -1255,7 +1268,7 @@ class PlaylistSave(BaseModel):
 
 
 @app.post("/user/searches")
-async def save_search(body: SearchSave, user=Depends(get_current_user)):
+def save_search(body: SearchSave, user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     supabase_admin.table("searches").insert({
@@ -1269,7 +1282,7 @@ async def save_search(body: SearchSave, user=Depends(get_current_user)):
 
 
 @app.get("/user/searches")
-async def get_searches(user=Depends(get_current_user)):
+def get_searches(user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     result = (
@@ -1284,7 +1297,7 @@ async def get_searches(user=Depends(get_current_user)):
 
 
 @app.delete("/user/searches")
-async def clear_searches(user=Depends(get_current_user)):
+def clear_searches(user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     supabase_admin.table("searches").delete().eq("user_id", str(user.id)).execute()
@@ -1292,7 +1305,7 @@ async def clear_searches(user=Depends(get_current_user)):
 
 
 @app.post("/user/playlists")
-async def save_playlist(body: PlaylistSave, user=Depends(get_current_user)):
+def save_playlist(body: PlaylistSave, user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
@@ -1314,7 +1327,7 @@ async def save_playlist(body: PlaylistSave, user=Depends(get_current_user)):
 
 
 @app.get("/user/playlists")
-async def get_playlists(user=Depends(get_current_user)):
+def get_playlists(user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     result = (
@@ -1331,7 +1344,7 @@ class PlaylistRename(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
 
 @app.patch("/user/playlists/{playlist_id}")
-async def rename_playlist(playlist_id: str, body: PlaylistRename, user=Depends(get_current_user)):
+def rename_playlist(playlist_id: str, body: PlaylistRename, user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     supabase_admin.table("saved_playlists").update({"name": body.name}).eq("id", playlist_id).eq("user_id", str(user.id)).execute()
@@ -1339,7 +1352,7 @@ async def rename_playlist(playlist_id: str, body: PlaylistRename, user=Depends(g
 
 
 @app.delete("/user/playlists/{playlist_id}")
-async def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
+def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
     supabase_admin.table("saved_playlists").delete().eq("id", playlist_id).eq("user_id", str(user.id)).execute()
@@ -1347,7 +1360,7 @@ async def delete_playlist(playlist_id: str, user=Depends(get_current_user)):
 
 
 @app.delete("/user/account")
-async def delete_account(user=Depends(get_current_user)):
+def delete_account(user=Depends(get_current_user)):
     # Required by Google Play's account deletion policy: removes all of the
     # user's rows, then the Supabase auth user itself.
     if not user or not supabase_admin:
@@ -1367,7 +1380,7 @@ class SpotifyPushBody(BaseModel):
     spotify_token: str
 
 @app.post("/user/playlists/{playlist_id}/push-to-spotify")
-async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user=Depends(get_current_user)):
+def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user=Depends(get_current_user)):
     logger.info("push-to-spotify start playlist_id=%s token_len=%d", playlist_id, len(body.spotify_token) if body.spotify_token else 0)
     if not user or not supabase_admin:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -1414,7 +1427,7 @@ async def push_to_spotify_endpoint(playlist_id: str, body: SpotifyPushBody, user
         for batch_start in range(0, len(uris), 100):
             batch = uris[batch_start:batch_start + 100]
             r = requests.post(
-                f"https://api.spotify.com/v1/playlists/{sp_pl_id}/tracks",
+                f"https://api.spotify.com/v1/playlists/{sp_pl_id}/items",
                 headers=track_headers,
                 timeout=10,
                 json={"uris": batch},
