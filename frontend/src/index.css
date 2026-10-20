@@ -128,6 +128,10 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  /* Android 15+ (targetSdk 36) forces edge-to-edge layout, drawing content
+     behind the status/nav bars unless we pad for them ourselves. */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 img {
@@ -708,7 +712,7 @@ img {
 
 .toast {
   position: fixed;
-  bottom: 32px;
+  bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 99999;
@@ -881,6 +885,8 @@ img {
     height: 100vh;
     z-index: 200;
     transform: translateX(-100%);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .app-sidebar[data-open="true"] {
     transform: translateX(0);
