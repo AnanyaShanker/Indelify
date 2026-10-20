@@ -1,6 +1,7 @@
 # Copyright © 2026 Ananya Shanker. All rights reserved.
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from starlette.requests import Request
@@ -86,6 +87,18 @@ limiter = Limiter(key_func=_client_ip)
 app = FastAPI(title="Indelify API")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.middleware("http")
+async def _catch_unhandled_errors(request: Request, call_next):
+    # Registered before CORSMiddleware so CORS wraps it. Otherwise an unhandled
+    # error (e.g. a Supabase outage) returns a bare 500 with no CORS headers,
+    # which the browser reports as a network/CORS failure instead of a message.
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": "Something went wrong. Please try again."})
+
 
 _ALLOWED_ORIGINS = [
     o.strip()
