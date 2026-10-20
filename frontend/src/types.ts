@@ -20,6 +20,7 @@ export interface SavedPlaylist {
   name: string
   tab: string
   tracks: Track[]
+  note?: string | null
   created_at: string
 }
 
