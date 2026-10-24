@@ -13,5 +13,10 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      # GitHub often delays/skips scheduled runs, so the backend can still be
+      # asleep when this fires and a cold start can exceed 60s. Allow a longer
+      # wait and retry instead of failing on the first timeout (curl exit 28).
       - name: Ping backend health endpoint
-        run: curl -sf --max-time 60 https://indelify-backend.onrender.com/ > /dev/null
+        run: |
+          curl -sSf --max-time 120 --retry 3 --retry-delay 15 --retry-all-errors \
+            https://indelify-backend.onrender.com/ > /dev/null
